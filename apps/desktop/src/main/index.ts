@@ -976,14 +976,21 @@ app.whenReady().then(async () => {
         }
 
         // Build indexes
-        const indexes: IndexDefinition[] = indexesResult.rows.map((row, idx) => ({
-          id: `index-${idx}`,
-          name: row.index_name,
-          columns: (row.columns as string[]).map((c) => ({ name: c })),
-          isUnique: row.is_unique,
-          method: row.index_method as IndexDefinition['method'],
-          where: row.where_clause || undefined
-        }))
+        const indexes: IndexDefinition[] = indexesResult.rows.map((row, idx) => {
+          // Handle columns array - could be null, undefined, or not an array in some cases
+          const columnsArray = Array.isArray(row.columns)
+            ? row.columns.filter((c: string | null) => c !== null)
+            : []
+
+          return {
+            id: `index-${idx}`,
+            name: row.index_name,
+            columns: columnsArray.map((c: string) => ({ name: c })),
+            isUnique: row.is_unique,
+            method: row.index_method as IndexDefinition['method'],
+            where: row.where_clause || undefined
+          }
+        })
 
         const definition: TableDefinition = {
           schema,
