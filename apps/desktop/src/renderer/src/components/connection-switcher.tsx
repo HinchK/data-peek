@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { ChevronDown, Database, Plus, Settings, Loader2 } from 'lucide-react'
+import { ChevronDown, Plus, Settings, Loader2 } from 'lucide-react'
 
 import {
   DropdownMenu,
@@ -16,6 +16,62 @@ import { SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui
 import { useConnectionStore } from '@/stores'
 import { useNavigate } from '@tanstack/react-router'
 import { AddConnectionDialog } from './add-connection-dialog'
+import type { DatabaseType } from '@shared/index'
+
+// Database type icons as simple SVG components
+function PostgreSQLIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z" />
+      <path d="M12 6v6l4 2" />
+      <text x="8" y="17" fontSize="8" fontWeight="bold" fill="currentColor" stroke="none">
+        PG
+      </text>
+    </svg>
+  )
+}
+
+function MySQLIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      <ellipse cx="12" cy="6" rx="8" ry="3" />
+      <path d="M4 6v6c0 1.66 3.58 3 8 3s8-1.34 8-3V6" />
+      <path d="M4 12v6c0 1.66 3.58 3 8 3s8-1.34 8-3v-6" />
+    </svg>
+  )
+}
+
+function DatabaseIcon({
+  dbType,
+  className
+}: {
+  dbType: DatabaseType | undefined
+  className?: string
+}) {
+  switch (dbType) {
+    case 'mysql':
+      return <MySQLIcon className={className} />
+    case 'postgresql':
+    default:
+      return <PostgreSQLIcon className={className} />
+  }
+}
 
 export function ConnectionSwitcher() {
   const navigate = useNavigate()
@@ -91,7 +147,7 @@ export function ConnectionSwitcher() {
           <DropdownMenuTrigger asChild>
             <SidebarMenuButton className="w-fit px-1.5">
               <div className="relative flex aspect-square size-5 items-center justify-center">
-                <Database className="size-4 text-sidebar-primary" />
+                <DatabaseIcon dbType={activeConnection?.dbType} className="size-4 text-sidebar-primary" />
                 {activeConnection?.isConnected && (
                   <span className="absolute -bottom-0.5 -right-0.5 size-2 rounded-full bg-green-500 ring-1 ring-sidebar" />
                 )}
@@ -125,14 +181,19 @@ export function ConnectionSwitcher() {
                   {connection.isConnecting ? (
                     <Loader2 className="size-4 shrink-0 animate-spin" />
                   ) : (
-                    <Database className="size-4 shrink-0" />
+                    <DatabaseIcon dbType={connection.dbType} className="size-4 shrink-0" />
                   )}
                   {connection.isConnected && !connection.isConnecting && (
                     <span className="absolute -bottom-0.5 -right-0.5 size-2 rounded-full bg-green-500 ring-1 ring-background" />
                   )}
                 </div>
                 <div className="flex flex-1 flex-col">
-                  <span className="font-medium">{connection.name}</span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-medium">{connection.name}</span>
+                    <span className="text-[10px] px-1 py-0.5 rounded bg-muted text-muted-foreground uppercase">
+                      {connection.dbType === 'mysql' ? 'MySQL' : 'PG'}
+                    </span>
+                  </div>
                   <span className="text-xs text-muted-foreground">
                     {connection.host}:{connection.port}/{connection.database}
                   </span>
