@@ -9,9 +9,9 @@
     "build": "pnpm --filter @data-peek/desktop build",
     "lint": "pnpm -r lint",
     "postinstall": "pnpm rebuild electron",
-    "build:win": "pnpm --filter @data-peek/desktop run build && electron-builder --win",
-    "build:mac": "pnpm --filter @data-peek/desktop run build && electron-builder --mac",
-    "build:linux": "pnpm --filter @data-peek/desktop run build && electron-builder --linux"
+    "build:win": "pnpm --filter @data-peek/desktop build:win",
+    "build:mac": "pnpm --filter @data-peek/desktop build:mac",
+    "build:linux": "pnpm --filter @data-peek/desktop build:linux"
   },
   "devDependencies": {
     "typescript": "^5.4.0",
