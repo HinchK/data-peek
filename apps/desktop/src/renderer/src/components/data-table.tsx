@@ -276,10 +276,10 @@ export function DataTable<TData extends Record<string, unknown>>({
                   const threshold = parseFloat(filterStr.slice(1))
                   return !isNaN(threshold) && numValue < threshold
                 }
-                if (filterStr.includes('-') && !filterStr.startsWith('-')) {
-                  const [minStr, maxStr] = filterStr.split('-')
-                  const min = parseFloat(minStr)
-                  const max = parseFloat(maxStr)
+                const rangeMatch = filterStr.match(/^(-?\d+(\.\d+)?)\s*-\s*(-?\d+(\.\d+)?)$/)
+                if (rangeMatch) {
+                  const min = parseFloat(rangeMatch[1])
+                  const max = parseFloat(rangeMatch[3])
                   if (!isNaN(min) && !isNaN(max)) {
                     return numValue >= min && numValue <= max
                   }
