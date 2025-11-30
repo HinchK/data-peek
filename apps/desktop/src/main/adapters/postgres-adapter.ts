@@ -567,7 +567,7 @@ export class PostgresAdapter implements DatabaseAdapter {
         // For expression indexes, extract the expression from the index definition
         // Format: CREATE INDEX name ON table USING method (expression)
         if (columnsArray.length === 0 && row.is_expression_index && row.index_definition) {
-          const match = row.index_definition.match(/\(([^)]+)\)(?:\s+WHERE|$)/i)
+          const match = row.index_definition.match(/USING\s+\w+\s+\((.+)\)(?:\s+WHERE|\s*$)/i)
           if (match) {
             // Use the expression as a single "column"
             columnsArray = [match[1].trim()]
