@@ -1,28 +1,28 @@
 'use client'
 
-import { useMemo, useCallback, useState, useEffect } from 'react'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { ScrollArea } from '@/components/ui/scroll-area'
+import { cn } from '@/lib/utils'
+import type { ColumnInfo, SchemaInfo } from '@shared/index'
 import {
-  ReactFlow,
   Background,
   Controls,
-  MiniMap,
-  useNodesState,
-  useEdgesState,
-  type Node,
-  type Edge,
-  Position,
+  Handle,
   MarkerType,
-  Handle
+  MiniMap,
+  Position,
+  ReactFlow,
+  useEdgesState,
+  useNodesState,
+  type Edge,
+  type Node
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
-import { Key, Columns3, GitBranch, Filter, X, Check, ChevronsUpDown } from 'lucide-react'
-import { cn } from '@/lib/utils'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { Input } from '@/components/ui/input'
-import { ScrollArea } from '@/components/ui/scroll-area'
-import type { SchemaInfo, ColumnInfo } from '@shared/index'
+import { Check, ChevronsUpDown, Columns3, Filter, GitBranch, Key, X } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 
 interface TableNodeData extends Record<string, unknown> {
   label: string

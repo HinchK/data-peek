@@ -37,11 +37,14 @@ linux:
   target:
     - AppImage
     - deb
+    - tar.gz
   maintainer: Rohith Gilla
   category: Development
 appImage:
   artifactName: ${productName}-${version}-${arch}.${ext}
 deb:
+  artifactName: ${productName}-${version}-${arch}.${ext}
+tar:
   artifactName: ${productName}-${version}-${arch}.${ext}
 npmRebuild: false
 publish:
