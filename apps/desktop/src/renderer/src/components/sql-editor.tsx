@@ -216,12 +216,24 @@ const SQL_TYPES = [
   'UUID'
 ]
 
-// Register SQL completion provider - returns disposable for cleanup
-const registerSQLCompletionProvider = (
-  monacoInstance: Monaco,
-  schemas: SchemaInfo[] = []
-): monaco.IDisposable => {
-  return monacoInstance.languages.registerCompletionItemProvider('sql', {
+// Singleton state for the completion provider
+// This prevents duplicate suggestions when multiple editor instances exist
+let globalCompletionProvider: monaco.IDisposable | null = null
+let currentSchemas: SchemaInfo[] = []
+
+// Update schemas for the global completion provider
+const updateCompletionSchemas = (schemas: SchemaInfo[]) => {
+  currentSchemas = schemas
+}
+
+// Register SQL completion provider once globally
+const ensureCompletionProvider = (monacoInstance: Monaco): void => {
+  // Only register once
+  if (globalCompletionProvider) {
+    return
+  }
+
+  globalCompletionProvider = monacoInstance.languages.registerCompletionItemProvider('sql', {
     triggerCharacters: [' ', '.', '(', ','],
     provideCompletionItems: (model, position) => {
       const word = model.getWordUntilPosition(position)
@@ -244,7 +256,7 @@ const registerSQLCompletionProvider = (
         const tableOrSchemaName = dotMatch[1].toLowerCase()
 
         // Check if it's a schema name - suggest tables
-        const matchingSchema = schemas.find((s) => s.name.toLowerCase() === tableOrSchemaName)
+        const matchingSchema = currentSchemas.find((s) => s.name.toLowerCase() === tableOrSchemaName)
         if (matchingSchema) {
           matchingSchema.tables.forEach((table) => {
             suggestions.push({
@@ -264,7 +276,7 @@ const registerSQLCompletionProvider = (
         }
 
         // Check if it's a table name - suggest columns
-        for (const schema of schemas) {
+        for (const schema of currentSchemas) {
           const matchingTable = schema.tables.find(
             (t) => t.name.toLowerCase() === tableOrSchemaName
           )
@@ -325,7 +337,7 @@ const registerSQLCompletionProvider = (
       })
 
       // Add schema names
-      schemas.forEach((schema) => {
+      currentSchemas.forEach((schema) => {
         suggestions.push({
           label: schema.name,
           kind: monacoInstance.languages.CompletionItemKind.Module,
@@ -337,7 +349,7 @@ const registerSQLCompletionProvider = (
       })
 
       // Add table names (with schema prefix for non-public)
-      schemas.forEach((schema) => {
+      currentSchemas.forEach((schema) => {
         schema.tables.forEach((table) => {
           const isPublic = schema.name === 'public'
           const insertText = isPublic ? table.name : `${schema.name}.${table.name}`
@@ -476,7 +488,6 @@ export function SQLEditor({
   const { theme } = useTheme()
   const editorRef = React.useRef<EditorType | null>(null)
   const monacoRef = React.useRef<Monaco | null>(null)
-  const completionProviderRef = React.useRef<monaco.IDisposable | null>(null)
 
   // Resolve system theme
   const resolvedTheme = React.useMemo(() => {
@@ -493,8 +504,9 @@ export function SQLEditor({
     // Define custom themes
     defineCustomTheme(monaco)
 
-    // Register SQL autocomplete provider with initial schemas
-    completionProviderRef.current = registerSQLCompletionProvider(monaco, schemas)
+    // Register SQL autocomplete provider (singleton - only registers once globally)
+    updateCompletionSchemas(schemas)
+    ensureCompletionProvider(monaco)
 
     // Set the theme based on current app theme
     const editorTheme = resolvedTheme === 'dark' ? 'data-peek-dark' : 'data-peek-light'
@@ -554,7 +566,7 @@ export function SQLEditor({
       suggestOnTriggerCharacters: true,
       acceptSuggestionOnEnter: 'on',
       tabCompletion: 'on',
-      wordBasedSuggestions: 'currentDocument',
+      wordBasedSuggestions: 'off',
       bracketPairColorization: {
         enabled: true
       }
@@ -574,23 +586,9 @@ export function SQLEditor({
     }
   }, [resolvedTheme])
 
-  // Re-register completion provider when schemas change
+  // Update completion schemas when they change
   React.useEffect(() => {
-    if (monacoRef.current) {
-      // Dispose previous provider
-      if (completionProviderRef.current) {
-        completionProviderRef.current.dispose()
-      }
-      // Register new provider with updated schemas
-      completionProviderRef.current = registerSQLCompletionProvider(monacoRef.current, schemas)
-    }
-
-    // Cleanup on unmount
-    return () => {
-      if (completionProviderRef.current) {
-        completionProviderRef.current.dispose()
-      }
-    }
+    updateCompletionSchemas(schemas)
   }, [schemas])
 
   const handleChange = (newValue: string | undefined) => {
