@@ -6,6 +6,7 @@ import {
   integer,
   boolean,
   index,
+  jsonb,
 } from 'drizzle-orm/pg-core'
 import { relations } from 'drizzle-orm'
 
@@ -60,6 +61,7 @@ export const activations = pgTable(
     licenseId: uuid('license_id')
       .references(() => licenses.id, { onDelete: 'cascade' })
       .notNull(),
+    instanceId: text('instance_id').notNull().unique(), // For deactivation
     deviceId: text('device_id').notNull(),
     deviceName: text('device_name'),
     os: text('os'), // 'macos', 'windows', 'linux'
@@ -71,6 +73,7 @@ export const activations = pgTable(
   (table) => [
     index('idx_activations_license').on(table.licenseId),
     index('idx_activations_device').on(table.deviceId),
+    index('idx_activations_instance').on(table.instanceId),
   ]
 )
 
@@ -90,6 +93,28 @@ export const releases = pgTable(
     releasedAt: timestamp('released_at', { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [index('idx_releases_version').on(table.version)]
+)
+
+// Webhook Events table - provider-agnostic event logging
+export const webhookEvents = pgTable(
+  'webhook_events',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    eventId: text('event_id').notNull(), // Provider's event ID
+    eventName: text('event_name').notNull(), // e.g. "payment.completed"
+    provider: text('provider').notNull(), // e.g. "dodo", "stripe", "clerk"
+    payload: jsonb('payload').notNull(), // Full event payload
+    processed: boolean('processed').notNull().default(false),
+    processedAt: timestamp('processed_at', { withTimezone: true }),
+    error: text('error'), // Store error message if processing failed
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index('idx_webhook_events_event_id').on(table.eventId),
+    index('idx_webhook_events_provider').on(table.provider),
+    index('idx_webhook_events_event_name').on(table.eventName),
+    index('idx_webhook_events_processed').on(table.processed),
+  ]
 )
 
 // Relations
@@ -124,3 +149,6 @@ export type NewActivation = typeof activations.$inferInsert
 
 export type Release = typeof releases.$inferSelect
 export type NewRelease = typeof releases.$inferInsert
+
+export type WebhookEvent = typeof webhookEvents.$inferSelect
+export type NewWebhookEvent = typeof webhookEvents.$inferInsert

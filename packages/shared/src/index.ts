@@ -788,13 +788,13 @@ export type LicenseType = 'personal' | 'individual' | 'team';
  * Stored license data (encrypted locally)
  */
 export interface LicenseData {
-  /** License key */
+  /** License key (from Dodo Payments) */
   key: string;
   /** Type of license */
   type: LicenseType;
   /** Email address of license owner */
   email: string;
-  /** Subscription expiry date (ISO string) */
+  /** Subscription expiry date / updates_until (ISO string) */
   expiresAt: string;
   /** Last version the user is entitled to use perpetually */
   perpetualVersion: string;
@@ -802,6 +802,8 @@ export interface LicenseData {
   activatedAt: string;
   /** Last time the license was validated online (ISO string) */
   lastValidated: string;
+  /** Dodo instance ID for this activation (needed for deactivation) */
+  instanceId?: string;
 }
 
 /**

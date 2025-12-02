@@ -3,11 +3,12 @@
 import Link from 'next/link'
 import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
-import { Database, Menu, X, Github, Star } from 'lucide-react'
+import { Database, Menu, X, Github, Star, BookOpen } from 'lucide-react'
 
 const navLinks = [
   { href: '#features', label: 'Features' },
   { href: '#pricing', label: 'Pricing' },
+  { href: 'https://docs.datapeek.dev/docs', label: 'Docs', external: true },
   { href: '#faq', label: 'FAQ' },
 ]
 
@@ -55,6 +56,7 @@ export function Header() {
               <Link
                 key={link.href}
                 href={link.href}
+                {...(link.external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
                 className="text-sm text-[--color-text-secondary] hover:text-[--color-text-primary] transition-colors"
                 style={{ fontFamily: 'var(--font-body)' }}
               >
@@ -101,6 +103,7 @@ export function Header() {
                 <Link
                   key={link.href}
                   href={link.href}
+                  {...(link.external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
                   className="text-sm text-[--color-text-secondary] hover:text-[--color-text-primary] transition-colors py-2"
                   onClick={() => setIsMobileMenuOpen(false)}
                 >

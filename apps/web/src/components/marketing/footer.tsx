@@ -6,18 +6,15 @@ const footerLinks = {
     { label: 'Features', href: '#features' },
     { label: 'Pricing', href: '#pricing' },
     { label: 'Download', href: '/download' },
-    { label: 'Changelog', href: '/changelog' },
+    { label: 'GitHub', href: 'https://github.com/Rohithgilla12/data-peek', external: true },
   ],
   Resources: [
-    { label: 'Documentation', href: '/docs' },
+    { label: 'Documentation', href: 'https://docs.datapeek.dev/docs', external: true },
     { label: 'FAQ', href: '#faq' },
-    { label: 'Blog', href: '/blog' },
-    { label: 'Support', href: '/support' },
+    { label: 'Support', href: 'mailto:gillarohith1@gmail.com', external: true },
   ],
   Legal: [
-    { label: 'Privacy Policy', href: '/privacy' },
-    { label: 'Terms of Service', href: '/terms' },
-    { label: 'License', href: '/license' },
+    { label: 'License (MIT)', href: 'https://github.com/Rohithgilla12/data-peek/blob/main/LICENSE', external: true },
   ],
 }
 
@@ -43,7 +40,7 @@ export function Footer() {
               className="text-xs sm:text-sm text-[--color-text-secondary] max-w-xs mb-4 sm:mb-6"
               style={{ fontFamily: 'var(--font-body)' }}
             >
-              A fast, beautiful PostgreSQL client for developers who value simplicity.
+              A fast, AI-powered database client for developers who value simplicity.
             </p>
 
             {/* Social Links */}
@@ -81,6 +78,7 @@ export function Footer() {
                   <li key={link.label}>
                     <Link
                       href={link.href}
+                      {...(link.external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
                       className="text-xs sm:text-sm text-[--color-text-secondary] hover:text-[--color-text-primary] transition-colors"
                     >
                       {link.label}

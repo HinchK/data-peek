@@ -1,6 +1,10 @@
+import { config } from 'dotenv'
 import { app, shell, BrowserWindow, ipcMain } from 'electron'
-import { join } from 'path'
+import { join, resolve } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
+
+// Load .env file - in development, it's in the desktop app directory
+config({ path: resolve(__dirname, '../../.env') })
 import icon from '../../resources/icon.png?asset'
 import type {
   ConnectionConfig,

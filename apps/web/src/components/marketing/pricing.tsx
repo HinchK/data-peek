@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Check, Heart, Github, ArrowRight, Sparkles } from 'lucide-react'
+import { CheckoutButton } from './checkout-button'
 
 const plans = [
   {
@@ -11,11 +12,12 @@ const plans = [
     description: 'All features, personal use only',
     features: [
       { text: 'All features unlocked', included: true },
+      { text: 'AI Assistant (BYOK)', included: true },
+      { text: 'PostgreSQL, MySQL, SQL Server', included: true },
       { text: 'Unlimited connections', included: true },
       { text: 'Unlimited query history', included: true },
       { text: 'All future updates', included: true },
       { text: 'Personal projects & learning', included: true },
-      { text: 'Open source contributors', included: true },
       { text: 'Students & educators', included: true },
     ],
     cta: 'Download Free',
@@ -89,11 +91,11 @@ export function Pricing() {
             >
               {/* Badge */}
               {plan.badge && (
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                  <Badge variant="default" size="md" className="whitespace-nowrap text-xs sm:text-sm">
-                    <Sparkles className="w-3 h-3 mr-1" />
+                <div className="absolute -top-4 inset-x-0 flex justify-center z-10">
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs sm:text-sm font-medium bg-[#0a0a0a] text-[--color-accent] border border-[--color-accent]/50 whitespace-nowrap" style={{ fontFamily: 'var(--font-mono)' }}>
+                    <Sparkles className="w-3 h-3" />
                     {plan.badge}
-                  </Badge>
+                  </span>
                 </div>
               )}
 
@@ -137,17 +139,21 @@ export function Pricing() {
               </ul>
 
               {/* CTA */}
-              <Button
-                variant={plan.highlighted ? 'primary' : 'secondary'}
-                size="lg"
-                className="w-full text-sm sm:text-base"
-                asChild
-              >
-                <Link href={plan.href}>
-                  {plan.cta}
-                  <ArrowRight className="w-4 h-4" />
-                </Link>
-              </Button>
+              {plan.highlighted ? (
+                <CheckoutButton className="w-full text-sm sm:text-base" />
+              ) : (
+                <Button
+                  variant="secondary"
+                  size="lg"
+                  className="w-full text-sm sm:text-base"
+                  asChild
+                >
+                  <Link href={plan.href}>
+                    {plan.cta}
+                    <ArrowRight className="w-4 h-4" />
+                  </Link>
+                </Button>
+              )}
             </div>
           ))}
         </div>

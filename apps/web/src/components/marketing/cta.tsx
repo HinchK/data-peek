@@ -57,7 +57,7 @@ export function CTA() {
           </span>
           <span className="flex items-center gap-2">
             <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-[--color-success]" />
-            14-day money-back guarantee
+            30-day money-back guarantee
           </span>
           <span className="flex items-center gap-2">
             <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-[--color-success]" />

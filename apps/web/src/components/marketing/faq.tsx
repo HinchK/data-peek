@@ -10,6 +10,21 @@ const faqs = [
       'Yes! data-peek is free for personal use with all features unlocked. No credit card required, no time limits, no feature restrictions. A license is only required if you use it for commercial purposes at a for-profit company with 2+ people.',
   },
   {
+    question: 'How does the AI Assistant work?',
+    answer:
+      'The AI Assistant lets you ask questions about your database in plain English and get SQL queries back. It\'s schema-aware, so it understands your tables and relationships. You can also generate charts and visualizations from your data. Bring your own API key from OpenAI, Anthropic, Google, Groq, or use local Ollama models for complete privacy.',
+  },
+  {
+    question: 'What AI providers are supported?',
+    answer:
+      'We support OpenAI (GPT-4o, GPT-4), Anthropic (Claude), Google (Gemini), Groq for ultra-fast inference, and Ollama for local models. You bring your own API key — we never see your keys or your data. For complete privacy, use Ollama with local models.',
+  },
+  {
+    question: 'What databases are supported?',
+    answer:
+      'PostgreSQL, MySQL, and Microsoft SQL Server. We\'re focused on making the best experience for these databases. SQLite support is planned for future releases.',
+  },
+  {
     question: 'What counts as commercial use?',
     answer:
       'Commercial use means using data-peek for work-related activities in a for-profit organization of 2+ people. This includes developers at startups/companies, freelancers billing clients, and agencies doing client work. Solo founders (company of one) are free!',
@@ -30,24 +45,14 @@ const faqs = [
       'Absolutely! Students and educators can use data-peek for free, even for school projects. Just reach out on X (@gillarohith) or email gillarohith1@gmail.com and we\'ll hook you up with a free license. Learning should never have barriers.',
   },
   {
-    question: 'How does the honor system work?',
+    question: 'Is my data safe?',
     answer:
-      'We trust you. There\'s no DRM, no aggressive license checks, no "you\'ve been logged out" surprises. If you\'re using it commercially, we ask that you pay for a license. Inspired by Yaak and other sustainable indie software.',
+      'Yes. data-peek runs entirely on your machine. All queries go directly to your database — we never see your data. Connection credentials and AI API keys are encrypted locally. No telemetry, no analytics, no tracking. For AI features, you can use local Ollama models if you don\'t want data leaving your machine.',
   },
   {
     question: 'How many devices can I use?',
     answer:
       'Each license includes 3 device activations. Use it on your work laptop, home computer, and one more device. Need more? Just reach out.',
-  },
-  {
-    question: 'Is my data safe?',
-    answer:
-      'Yes. data-peek runs entirely on your machine. All queries go directly to your database — we never see your data. Connection credentials are encrypted locally. No telemetry, no analytics, no tracking.',
-  },
-  {
-    question: 'What databases are supported?',
-    answer:
-      'Currently PostgreSQL and MySQL. We\'re laser-focused on making the best database experience possible. SQLite and more databases are planned for future releases.',
   },
   {
     question: 'Can I get a refund?',
@@ -57,7 +62,19 @@ const faqs = [
 ]
 
 export function FAQ() {
-  const [openIndex, setOpenIndex] = useState<number | null>(0)
+  const [openIndexes, setOpenIndexes] = useState<Set<number>>(new Set([0]))
+
+  const toggleFaq = (index: number) => {
+    setOpenIndexes((prev) => {
+      const next = new Set(prev)
+      if (next.has(index)) {
+        next.delete(index)
+      } else {
+        next.add(index)
+      }
+      return next
+    })
+  }
 
   return (
     <section id="faq" className="relative py-20 sm:py-32 overflow-hidden">
@@ -83,41 +100,44 @@ export function FAQ() {
 
         {/* FAQ List */}
         <div className="space-y-3 sm:space-y-4">
-          {faqs.map((faq, index) => (
-            <div
-              key={index}
-              className="rounded-lg sm:rounded-xl border border-[--color-border] overflow-hidden bg-[--color-surface]/50"
-            >
-              <button
-                onClick={() => setOpenIndex(openIndex === index ? null : index)}
-                className="w-full flex items-center justify-between p-4 sm:p-5 text-left hover:bg-[--color-surface] transition-colors"
-              >
-                <span
-                  className="text-sm sm:text-base font-medium pr-3 sm:pr-4"
-                  style={{ fontFamily: 'var(--font-display)' }}
-                >
-                  {faq.question}
-                </span>
-                <ChevronDown
-                  className={`w-4 h-4 sm:w-5 sm:h-5 text-[--color-text-muted] flex-shrink-0 transition-transform duration-200 ${
-                    openIndex === index ? 'rotate-180' : ''
-                  }`}
-                />
-              </button>
+          {faqs.map((faq, index) => {
+            const isOpen = openIndexes.has(index)
+            return (
               <div
-                className={`overflow-hidden transition-all duration-300 ease-out ${
-                  openIndex === index ? 'max-h-96' : 'max-h-0'
-                }`}
+                key={index}
+                className="rounded-lg sm:rounded-xl border border-[--color-border] overflow-hidden bg-[--color-surface]/50"
               >
-                <p
-                  className="px-4 sm:px-5 pb-4 sm:pb-5 text-xs sm:text-sm text-[--color-text-secondary] leading-relaxed"
-                  style={{ fontFamily: 'var(--font-body)' }}
+                <button
+                  onClick={() => toggleFaq(index)}
+                  className="w-full flex items-center justify-between p-4 sm:p-5 text-left hover:bg-[--color-surface] transition-colors"
                 >
-                  {faq.answer}
-                </p>
+                  <span
+                    className="text-sm sm:text-base font-medium pr-3 sm:pr-4"
+                    style={{ fontFamily: 'var(--font-display)' }}
+                  >
+                    {faq.question}
+                  </span>
+                  <ChevronDown
+                    className={`w-4 h-4 sm:w-5 sm:h-5 text-[--color-text-muted] flex-shrink-0 transition-transform duration-200 ${
+                      isOpen ? 'rotate-180' : ''
+                    }`}
+                  />
+                </button>
+                <div
+                  className={`overflow-hidden transition-all duration-300 ease-out ${
+                    isOpen ? 'max-h-96' : 'max-h-0'
+                  }`}
+                >
+                  <p
+                    className="px-4 sm:px-5 pb-4 sm:pb-5 text-xs sm:text-sm text-[--color-text-secondary] leading-relaxed"
+                    style={{ fontFamily: 'var(--font-body)' }}
+                  >
+                    {faq.answer}
+                  </p>
+                </div>
               </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       </div>
     </section>

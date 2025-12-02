@@ -1,78 +1,56 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { db, licenses, activations } from '@/db'
-import { eq, and, count } from 'drizzle-orm'
-
-interface DeactivateRequest {
-  licenseKey: string
-  deviceId: string
-}
-
-interface DeactivateResponse {
-  success: boolean
-  activationsRemaining?: number
-  error?: string
-}
+import { NextRequest, NextResponse } from "next/server";
+import { db, activations } from "@/db";
+import { eq } from "drizzle-orm";
 
 export async function POST(request: NextRequest) {
   try {
-    const body = (await request.json()) as DeactivateRequest
+    const body = await request.json();
+    const { license_key: rawLicenseKey, instance_id, device_id } = body as {
+      license_key: string;
+      instance_id: string;
+      device_id?: string;
+    };
 
-    if (!body.licenseKey || !body.deviceId) {
-      return NextResponse.json<DeactivateResponse>(
-        { success: false, error: 'Missing licenseKey or deviceId' },
+    // Normalize license key to uppercase
+    const license_key = rawLicenseKey?.toUpperCase().trim();
+
+    if (!license_key || !instance_id) {
+      return NextResponse.json(
+        { error: "License key and instance_id are required" },
         { status: 400 }
-      )
+      );
     }
 
-    // Find the license
-    const license = await db.query.licenses.findFirst({
-      where: eq(licenses.licenseKey, body.licenseKey),
-    })
-
-    if (!license) {
-      return NextResponse.json<DeactivateResponse>(
-        { success: false, error: 'License not found' },
-        { status: 404 }
-      )
-    }
-
-    // Find the activation
+    // Find and deactivate by instance_id
     const activation = await db.query.activations.findFirst({
-      where: and(
-        eq(activations.licenseId, license.id),
-        eq(activations.deviceId, body.deviceId),
-        eq(activations.isActive, true)
-      ),
-    })
+      where: eq(activations.instanceId, instance_id),
+    });
 
     if (!activation) {
-      return NextResponse.json<DeactivateResponse>(
-        { success: false, error: 'Activation not found for this device' },
-        { status: 404 }
-      )
+      // Already deactivated or doesn't exist - treat as success
+      return NextResponse.json({
+        success: true,
+        message: "License deactivated successfully",
+      });
     }
 
-    // Deactivate
+    // Mark as inactive
     await db
       .update(activations)
       .set({ isActive: false })
-      .where(eq(activations.id, activation.id))
+      .where(eq(activations.instanceId, instance_id));
 
-    // Count remaining activations
-    const [activationCount] = await db
-      .select({ count: count() })
-      .from(activations)
-      .where(and(eq(activations.licenseId, license.id), eq(activations.isActive, true)))
+    console.log(`[deactivate] Deactivated ${license_key} instance ${instance_id}`);
 
-    return NextResponse.json<DeactivateResponse>({
+    return NextResponse.json({
       success: true,
-      activationsRemaining: license.maxActivations - (activationCount?.count ?? 0),
-    })
+      message: "License deactivated successfully",
+    });
   } catch (error) {
-    console.error('License deactivation error:', error)
-    return NextResponse.json<DeactivateResponse>(
-      { success: false, error: 'Internal server error' },
+    console.error("License deactivation error:", error);
+    return NextResponse.json(
+      { error: "Failed to deactivate license" },
       { status: 500 }
-    )
+    );
   }
 }

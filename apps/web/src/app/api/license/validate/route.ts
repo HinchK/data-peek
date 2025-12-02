@@ -1,91 +1,59 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { db, licenses, activations } from '@/db'
-import { eq, and, count } from 'drizzle-orm'
-
-interface ValidateRequest {
-  licenseKey: string
-  deviceId: string
-}
-
-interface ValidateResponse {
-  valid: boolean
-  plan?: string
-  status?: string
-  updatesUntil?: string
-  activationsUsed?: number
-  activationsMax?: number
-  error?: string
-}
+import { NextRequest, NextResponse } from "next/server";
+import { db, licenses } from "@/db";
+import { eq } from "drizzle-orm";
 
 export async function POST(request: NextRequest) {
   try {
-    const body = (await request.json()) as ValidateRequest
+    const body = await request.json();
+    const { license_key: rawLicenseKey } = body as { license_key: string };
 
-    if (!body.licenseKey || !body.deviceId) {
-      return NextResponse.json<ValidateResponse>(
-        { valid: false, error: 'Missing licenseKey or deviceId' },
+    // Normalize license key to uppercase (our keys are uppercase)
+    const license_key = rawLicenseKey?.toUpperCase().trim();
+
+    if (!license_key) {
+      return NextResponse.json(
+        { valid: false, error: "License key is required" },
         { status: 400 }
-      )
+      );
     }
 
-    // Find the license
+    // Check our database
     const license = await db.query.licenses.findFirst({
-      where: eq(licenses.licenseKey, body.licenseKey),
-    })
+      where: eq(licenses.licenseKey, license_key),
+    });
 
     if (!license) {
-      return NextResponse.json<ValidateResponse>(
-        { valid: false, error: 'License not found' },
-        { status: 404 }
-      )
+      return NextResponse.json({
+        valid: false,
+        error: "License key not found",
+      });
     }
 
-    // Check license status
-    if (license.status === 'revoked') {
-      return NextResponse.json<ValidateResponse>(
-        { valid: false, error: 'License has been revoked' },
-        { status: 403 }
-      )
+    if (license.status !== "active") {
+      return NextResponse.json({
+        valid: false,
+        error: `License is ${license.status}`,
+      });
     }
 
-    // Count active activations
-    const [activationCount] = await db
-      .select({ count: count() })
-      .from(activations)
-      .where(and(eq(activations.licenseId, license.id), eq(activations.isActive, true)))
+    // Determine if updates are still available
+    const now = new Date();
+    const updatesAvailable = license.updatesUntil > now;
 
-    const activationsUsed = activationCount?.count ?? 0
-
-    // Check if this device is already activated
-    const existingActivation = await db.query.activations.findFirst({
-      where: and(
-        eq(activations.licenseId, license.id),
-        eq(activations.deviceId, body.deviceId),
-        eq(activations.isActive, true)
-      ),
-    })
-
-    // Update last validated timestamp if device is activated
-    if (existingActivation) {
-      await db
-        .update(activations)
-        .set({ lastValidatedAt: new Date() })
-        .where(eq(activations.id, existingActivation.id))
-    }
-
-    return NextResponse.json<ValidateResponse>({
+    return NextResponse.json({
       valid: true,
-      plan: license.plan,
+      license_key,
       status: license.status,
-      updatesUntil: license.updatesUntil.toISOString(),
-      activationsUsed,
-      activationsMax: license.maxActivations,
-    })
+      activations_limit: license.maxActivations,
+      updates_available: updatesAvailable,
+      updates_until: license.updatesUntil.toISOString(),
+      plan: license.plan,
+    });
   } catch (error) {
-    console.error('License validation error:', error)
-    return NextResponse.json<ValidateResponse>(
-      { valid: false, error: 'Internal server error' },
+    console.error("License validation error:", error);
+    return NextResponse.json(
+      { valid: false, error: "Failed to validate license" },
       { status: 500 }
-    )
+    );
   }
 }

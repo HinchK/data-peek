@@ -2,12 +2,15 @@ import { app } from 'electron'
 import * as crypto from 'crypto'
 import * as os from 'os'
 import type { LicenseData, LicenseStatus, LicenseType } from '@shared/index'
-import { DpSecureStorage } from './storage'
+import { DpStorage } from './storage'
 
-let store: DpSecureStorage<{ license?: LicenseData }> | null = null
+let store: DpStorage<{ license?: LicenseData }> | null = null
 
-// License server API URL (placeholder - configure for your server)
-const API_URL = process.env.LICENSE_API_URL || 'https://api.data-peek.dev'
+// License server API URL - use getter to read lazily after dotenv loads
+function getApiUrl(): string {
+  const url = process.env.LICENSE_API_URL || 'https://datapeek.dev'
+  return url
+}
 
 // Validation intervals
 const VALIDATION_INTERVAL_DAYS = 7
@@ -75,7 +78,7 @@ function isVersionLessOrEqual(current: string, perpetual: string): boolean {
 export async function initLicenseStore(): Promise<void> {
   if (store) return
 
-  store = await DpSecureStorage.create<{ license?: LicenseData }>({
+  store = await DpStorage.create<{ license?: LicenseData }>({
     name: 'data-peek-license',
     defaults: {
       license: undefined
@@ -138,23 +141,42 @@ function getExpiredStatus(stored: LicenseData): LicenseStatus {
 }
 
 /**
+ * Validate license response from API
+ */
+interface ValidateLicenseResponse {
+  valid: boolean
+  updates_available?: boolean
+  updates_until?: string
+  plan?: string
+}
+
+/**
  * Validate license online
  */
-async function validateOnline(key: string): Promise<boolean> {
+async function validateOnline(key: string): Promise<ValidateLicenseResponse> {
   try {
-    const response = await fetch(`${API_URL}/api/licenses/validate`, {
+    const response = await fetch(`${getApiUrl()}/api/license/validate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        key,
-        deviceId: getDeviceId()
+        license_key: key
       })
     })
 
-    return response.ok
+    if (!response.ok) {
+      return { valid: false }
+    }
+
+    const data = await response.json()
+    return {
+      valid: data.valid,
+      updates_available: data.updates_available,
+      updates_until: data.updates_until,
+      plan: data.plan
+    }
   } catch {
-    // Network error - return false to trigger offline handling
-    return false
+    // Network error - return invalid to trigger offline handling
+    return { valid: false }
   }
 }
 
@@ -183,13 +205,16 @@ export async function checkLicense(): Promise<LicenseStatus> {
   const needsRevalidation = daysSinceValidation >= VALIDATION_INTERVAL_DAYS
 
   if (needsRevalidation) {
-    try {
-      const validated = await validateOnline(stored.key)
-      if (validated) {
-        updateLastValidated()
+    const validationResult = await validateOnline(stored.key)
+    if (validationResult.valid) {
+      updateLastValidated()
+      // Update stored expiry if server provides newer data
+      if (validationResult.updates_until) {
+        stored.expiresAt = validationResult.updates_until
+        saveLicense(stored)
       }
-    } catch {
-      // Offline - check grace period
+    } else {
+      // Offline or invalid - check grace period
       if (daysSinceValidation > OFFLINE_GRACE_DAYS) {
         return getExpiredStatus(stored)
       }
@@ -225,33 +250,41 @@ export async function activateLicense(
   email: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const response = await fetch(`${API_URL}/api/licenses/activate`, {
+    const requestBody = {
+      license_key: licenseKey,
+      name: getDeviceName(),
+      device_id: getDeviceId(),
+      os: os.platform(),
+      app_version: getAppVersion()
+    }
+    console.log('[license] Activating license at:', `${getApiUrl()}/api/license/activate`)
+    console.log('[license] Request body:', JSON.stringify(requestBody))
+
+    const response = await fetch(`${getApiUrl()}/api/license/activate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        key: licenseKey,
-        email,
-        deviceId: getDeviceId(),
-        deviceName: getDeviceName(),
-        appVersion: getAppVersion()
-      })
+      body: JSON.stringify(requestBody)
     })
 
     const data = await response.json()
+    console.log('[license] Response status:', response.status)
+    console.log('[license] Response data:', JSON.stringify(data))
 
-    if (!response.ok) {
-      return { success: false, error: data.message || 'Activation failed' }
+    if (!response.ok || !data.success) {
+      return { success: false, error: data.error || 'Activation failed' }
     }
 
-    // Store license data
+    // Store license data with Dodo's instance ID
     const licenseData: LicenseData = {
       key: licenseKey,
-      type: data.type as LicenseType,
+      type: (data.plan as LicenseType) || 'individual',
       email,
-      expiresAt: data.expiresAt,
-      perpetualVersion: data.perpetualVersion || getAppVersion(),
+      expiresAt:
+        data.updates_until || new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
+      perpetualVersion: getAppVersion(), // Current version becomes perpetual fallback
       activatedAt: new Date().toISOString(),
-      lastValidated: new Date().toISOString()
+      lastValidated: new Date().toISOString(),
+      instanceId: data.id // Store Dodo's instance ID for deactivation
     }
 
     saveLicense(licenseData)
@@ -273,14 +306,18 @@ export async function deactivateLicense(): Promise<{ success: boolean; error?: s
   }
 
   try {
-    await fetch(`${API_URL}/api/licenses/deactivate`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        key: stored.key,
-        deviceId: getDeviceId()
+    // Only call API if we have an instance ID from Dodo
+    if (stored.instanceId) {
+      await fetch(`${getApiUrl()}/api/license/deactivate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          license_key: stored.key,
+          instance_id: stored.instanceId,
+          device_id: getDeviceId()
+        })
       })
-    })
+    }
   } catch {
     // Continue anyway - allow offline deactivation
     console.log('[license] Could not reach server, deactivating locally')

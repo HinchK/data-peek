@@ -47,7 +47,7 @@ export function Hero() {
           >
             Peek at your data.
             <br />
-            <span className="gradient-text">Fast.</span>
+            <span className="gradient-text">Fast. With AI.</span>
           </h1>
 
           {/* Subheadline */}
@@ -55,8 +55,8 @@ export function Hero() {
             className="animate-fade-in-up delay-200 text-base sm:text-lg md:text-xl text-[--color-text-secondary] max-w-2xl mb-8 sm:mb-10 leading-relaxed px-2"
             style={{ fontFamily: 'var(--font-body)' }}
           >
-            A lightning-fast PostgreSQL client for developers who value simplicity.
-            Open source, free for personal use.
+            A lightning-fast database client with AI-powered querying.
+            PostgreSQL, MySQL, and SQL Server. Open source, free for personal use.
           </p>
 
           {/* Terminal-style feature highlight */}
@@ -65,16 +65,17 @@ export function Hero() {
             style={{ fontFamily: 'var(--font-mono)' }}
           >
             <span className="flex items-center gap-2 text-xs sm:text-sm">
+              <Sparkles className="w-4 h-4 text-[#a855f7]" />
+              <span className="text-[--color-text-muted]">AI-powered</span>
+            </span>
+            <span className="hidden sm:block w-px h-4 bg-[--color-border]" />
+            <span className="flex items-center gap-2 text-xs sm:text-sm">
               <Zap className="w-4 h-4 text-[--color-warning]" />
               <span className="text-[--color-text-muted]">&lt; 2s startup</span>
             </span>
             <span className="hidden sm:block w-px h-4 bg-[--color-border]" />
             <span className="flex items-center gap-2 text-xs sm:text-sm">
               <span className="text-[--color-text-muted]">keyboard-first</span>
-            </span>
-            <span className="hidden sm:block w-px h-4 bg-[--color-border]" />
-            <span className="flex items-center gap-2 text-xs sm:text-sm">
-              <span className="text-[--color-text-muted]">all features free</span>
             </span>
           </div>
 
