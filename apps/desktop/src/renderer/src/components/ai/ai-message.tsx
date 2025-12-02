@@ -188,6 +188,7 @@ export function AIMessage({ message, onOpenInTab, connection, schemas = [] }: AI
               onExecute={() => handleExecuteInline(queryData.sql)}
               onOpenInTab={() => onOpenInTab(queryData.sql)}
               isExecuting={queryExecuting}
+              requiresConfirmation={queryData.requiresConfirmation}
             />
 
             {/* Query Error */}

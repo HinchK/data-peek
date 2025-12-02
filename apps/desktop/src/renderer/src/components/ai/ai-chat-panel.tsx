@@ -61,6 +61,8 @@ export interface AIQueryData {
   sql: string
   explanation: string
   warning?: string
+  /** If true, query should NOT be auto-executed (UPDATE/DELETE operations) */
+  requiresConfirmation?: boolean
 }
 
 export interface AIChartData {
