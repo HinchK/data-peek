@@ -28,6 +28,47 @@ export const customers = pgTable(
   ]
 )
 
+// Teams table - for business/team plans
+export const teams = pgTable(
+  'teams',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    name: text('name').notNull(),
+    ownerId: uuid('owner_id')
+      .references(() => customers.id)
+      .notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index('idx_teams_owner').on(table.ownerId),
+  ]
+)
+
+// Team Members table - links customers to teams
+export const teamMembers = pgTable(
+  'team_members',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    teamId: uuid('team_id')
+      .references(() => teams.id, { onDelete: 'cascade' })
+      .notNull(),
+    customerId: uuid('customer_id')
+      .references(() => customers.id, { onDelete: 'cascade' })
+      .notNull(),
+    role: text('role').notNull().default('member'), // 'owner', 'admin', 'member'
+    invitedBy: uuid('invited_by').references(() => customers.id),
+    invitedAt: timestamp('invited_at', { withTimezone: true }).defaultNow().notNull(),
+    joinedAt: timestamp('joined_at', { withTimezone: true }),
+    status: text('status').notNull().default('pending'), // 'pending', 'active', 'removed'
+  },
+  (table) => [
+    index('idx_team_members_team').on(table.teamId),
+    index('idx_team_members_customer').on(table.customerId),
+    index('idx_team_members_status').on(table.status),
+  ]
+)
+
 // Licenses table
 export const licenses = pgTable(
   'licenses',
@@ -40,8 +81,12 @@ export const licenses = pgTable(
     plan: text('plan').notNull().default('pro'), // 'pro', 'team', 'enterprise'
     status: text('status').notNull().default('active'), // 'active', 'revoked', 'expired'
     maxActivations: integer('max_activations').notNull().default(3),
+    // Team-specific fields
+    teamId: uuid('team_id').references(() => teams.id),
+    seatCount: integer('seat_count').default(1), // Number of seats for team plans
     dodoPaymentId: text('dodo_payment_id').unique(),
     dodoProductId: text('dodo_product_id'),
+    dodoSubscriptionId: text('dodo_subscription_id'), // For subscription management
     purchasedAt: timestamp('purchased_at', { withTimezone: true }).defaultNow().notNull(),
     updatesUntil: timestamp('updates_until', { withTimezone: true }).notNull(),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
@@ -50,6 +95,7 @@ export const licenses = pgTable(
     index('idx_licenses_customer').on(table.customerId),
     index('idx_licenses_key').on(table.licenseKey),
     index('idx_licenses_status').on(table.status),
+    index('idx_licenses_team').on(table.teamId),
   ]
 )
 
@@ -120,12 +166,42 @@ export const webhookEvents = pgTable(
 // Relations
 export const customersRelations = relations(customers, ({ many }) => ({
   licenses: many(licenses),
+  ownedTeams: many(teams),
+  teamMemberships: many(teamMembers),
+}))
+
+export const teamsRelations = relations(teams, ({ one, many }) => ({
+  owner: one(customers, {
+    fields: [teams.ownerId],
+    references: [customers.id],
+  }),
+  members: many(teamMembers),
+  licenses: many(licenses),
+}))
+
+export const teamMembersRelations = relations(teamMembers, ({ one }) => ({
+  team: one(teams, {
+    fields: [teamMembers.teamId],
+    references: [teams.id],
+  }),
+  customer: one(customers, {
+    fields: [teamMembers.customerId],
+    references: [customers.id],
+  }),
+  inviter: one(customers, {
+    fields: [teamMembers.invitedBy],
+    references: [customers.id],
+  }),
 }))
 
 export const licensesRelations = relations(licenses, ({ one, many }) => ({
   customer: one(customers, {
     fields: [licenses.customerId],
     references: [customers.id],
+  }),
+  team: one(teams, {
+    fields: [licenses.teamId],
+    references: [teams.id],
   }),
   activations: many(activations),
 }))
@@ -152,3 +228,9 @@ export type NewRelease = typeof releases.$inferInsert
 
 export type WebhookEvent = typeof webhookEvents.$inferSelect
 export type NewWebhookEvent = typeof webhookEvents.$inferInsert
+
+export type Team = typeof teams.$inferSelect
+export type NewTeam = typeof teams.$inferInsert
+
+export type TeamMember = typeof teamMembers.$inferSelect
+export type NewTeamMember = typeof teamMembers.$inferInsert

@@ -1,7 +1,7 @@
 import { app } from 'electron'
 import * as crypto from 'crypto'
 import * as os from 'os'
-import type { LicenseData, LicenseStatus, LicenseType } from '@shared/index'
+import type { LicenseData, LicenseStatus, LicenseType, LicensePlan, TeamInfo } from '@shared/index'
 import { DpStorage } from './storage'
 
 let store: DpStorage<{ license?: LicenseData }> | null = null
@@ -181,6 +181,15 @@ async function validateOnline(key: string): Promise<ValidateLicenseResponse> {
 }
 
 /**
+ * Get plan type from license type
+ */
+function getPlanFromType(type: LicenseType): LicensePlan | undefined {
+  if (type === 'individual') return 'pro'
+  if (type === 'team') return 'team'
+  return undefined
+}
+
+/**
  * Check the current license status
  */
 export async function checkLicense(): Promise<LicenseStatus> {
@@ -230,11 +239,13 @@ export async function checkLicense(): Promise<LicenseStatus> {
       isValid: true,
       isCommercial: true,
       type: stored.type,
+      plan: getPlanFromType(stored.type),
       expiresAt: stored.expiresAt,
       daysUntilExpiry: daysBetween(now, expiresAt),
       perpetualVersion: stored.perpetualVersion,
       needsRevalidation: false,
-      email: stored.email
+      email: stored.email,
+      teamInfo: stored.teamInfo
     }
   }
 
@@ -255,7 +266,8 @@ export async function activateLicense(
       name: getDeviceName(),
       device_id: getDeviceId(),
       os: os.platform(),
-      app_version: getAppVersion()
+      app_version: getAppVersion(),
+      email // Include email for team license validation
     }
     console.log('[license] Activating license at:', `${getApiUrl()}/api/license/activate`)
     console.log('[license] Request body:', JSON.stringify(requestBody))
@@ -274,17 +286,36 @@ export async function activateLicense(
       return { success: false, error: data.error || 'Activation failed' }
     }
 
+    // Determine license type from plan
+    let licenseType: LicenseType = 'individual'
+    if (data.plan === 'team' || data.plan === 'enterprise') {
+      licenseType = 'team'
+    }
+
+    // Parse team info if present
+    let teamInfo: TeamInfo | undefined
+    if (data.team_info) {
+      teamInfo = {
+        id: data.team_info.id,
+        name: data.team_info.name,
+        seatCount: data.team_info.seatCount,
+        seatsUsed: data.team_info.seatsUsed,
+        role: data.team_info.role
+      }
+    }
+
     // Store license data with Dodo's instance ID
     const licenseData: LicenseData = {
       key: licenseKey,
-      type: (data.plan as LicenseType) || 'individual',
+      type: licenseType,
       email,
       expiresAt:
         data.updates_until || new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
       perpetualVersion: getAppVersion(), // Current version becomes perpetual fallback
       activatedAt: new Date().toISOString(),
       lastValidated: new Date().toISOString(),
-      instanceId: data.id // Store Dodo's instance ID for deactivation
+      instanceId: data.id, // Store Dodo's instance ID for deactivation
+      teamInfo
     }
 
     saveLicense(licenseData)

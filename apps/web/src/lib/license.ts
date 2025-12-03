@@ -3,6 +3,31 @@ import { randomBytes } from 'crypto'
 // Characters that won't be confused (no 0, O, 1, I, l)
 const LICENSE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
 
+// Plan configuration
+export const PLAN_CONFIG = {
+  pro: {
+    prefix: 'DPRO',
+    maxActivations: 3,
+    defaultSeatCount: 1,
+  },
+  team: {
+    prefix: 'DTEAM',
+    maxActivationsPerSeat: 2, // Each team member can activate on 2 devices
+    defaultSeatCount: 5,
+    minSeats: 3,
+    maxSeats: 100,
+  },
+  enterprise: {
+    prefix: 'DENT',
+    maxActivationsPerSeat: 3,
+    defaultSeatCount: 10,
+    minSeats: 10,
+    maxSeats: 1000,
+  },
+} as const
+
+export type PlanType = keyof typeof PLAN_CONFIG
+
 /**
  * Generate a license key in the format: DPRO-XXXX-XXXX-XXXX-XXXX
  */
@@ -38,6 +63,32 @@ export function getPlanFromKey(key: string): 'pro' | 'team' | 'enterprise' | nul
   if (key.startsWith('DTEAM-')) return 'team'
   if (key.startsWith('DENT-')) return 'enterprise'
   return null
+}
+
+/**
+ * Check if a plan is a team-based plan
+ */
+export function isTeamPlan(plan: string): boolean {
+  return plan === 'team' || plan === 'enterprise'
+}
+
+/**
+ * Get max activations for a plan
+ */
+export function getMaxActivations(plan: PlanType, seatCount: number = 1): number {
+  const config = PLAN_CONFIG[plan]
+  if (plan === 'pro') {
+    return config.maxActivations
+  }
+  // For team/enterprise plans, multiply activations per seat by seat count
+  return ('maxActivationsPerSeat' in config ? config.maxActivationsPerSeat : 2) * seatCount
+}
+
+/**
+ * Get the license key prefix for a plan
+ */
+export function getPrefixForPlan(plan: PlanType): string {
+  return PLAN_CONFIG[plan].prefix
 }
 
 /**

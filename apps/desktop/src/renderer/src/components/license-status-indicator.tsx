@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect } from 'react'
-import { Check, AlertCircle, User } from 'lucide-react'
+import { Check, AlertCircle, User, Users } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { useLicenseStore } from '@/stores/license-store'
@@ -112,6 +112,9 @@ export function LicenseStatusIndicator() {
     )
   }
 
+  // Determine if this is a team license
+  const isTeamLicense = status.type === 'team' || status.teamInfo
+
   // Active license
   return (
     <TooltipProvider>
@@ -123,15 +126,20 @@ export function LicenseStatusIndicator() {
             className="h-6 gap-1.5 px-2 text-xs text-green-500 hover:text-green-400"
             onClick={handleClick}
           >
-            <Check className="size-3" />
-            Pro License
+            {isTeamLicense ? <Users className="size-3" /> : <Check className="size-3" />}
+            {isTeamLicense ? 'Team License' : 'Pro License'}
           </Button>
         </TooltipTrigger>
         <TooltipContent>
           <p>
-            {status.type === 'team' ? 'Team' : 'Individual'} license active
+            {isTeamLicense ? 'Team' : 'Individual'} license active
             {status.email && ` (${status.email})`}
           </p>
+          {status.teamInfo && (
+            <p className="text-xs text-muted-foreground mt-1">
+              {status.teamInfo.name} ({status.teamInfo.seatsUsed}/{status.teamInfo.seatCount} seats)
+            </p>
+          )}
           {status.daysUntilExpiry && (
             <p className="text-xs text-muted-foreground mt-1">
               Renews in {status.daysUntilExpiry} days

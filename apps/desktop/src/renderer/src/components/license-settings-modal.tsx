@@ -1,6 +1,6 @@
 'use client'
 
-import { Loader2, Check, AlertCircle, ExternalLink, LogOut, Monitor, CreditCard } from 'lucide-react'
+import { Loader2, Check, AlertCircle, ExternalLink, LogOut, Monitor, CreditCard, Users } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -41,6 +41,7 @@ export function LicenseSettingsModal({ open, onOpenChange }: LicenseSettingsModa
 
   const isExpired = status.daysUntilExpiry !== null && status.daysUntilExpiry <= 0
   const isExpiringSoon = status.daysUntilExpiry !== null && status.daysUntilExpiry <= 14
+  const isTeamLicense = status.type === 'team' || status.teamInfo
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -65,6 +66,8 @@ export function LicenseSettingsModal({ open, onOpenChange }: LicenseSettingsModa
               >
                 {isExpired || isExpiringSoon ? (
                   <AlertCircle className="size-4" />
+                ) : isTeamLicense ? (
+                  <Users className="size-4" />
                 ) : (
                   <Check className="size-4" />
                 )}
@@ -103,6 +106,26 @@ export function LicenseSettingsModal({ open, onOpenChange }: LicenseSettingsModa
                         )}
                       </span>
                     </div>
+                  )}
+
+                  {status.teamInfo && (
+                    <>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Team</span>
+                        <span>{status.teamInfo.name}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Role</span>
+                        <span className="capitalize">{status.teamInfo.role}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Seats</span>
+                        <span className="flex items-center gap-1">
+                          <Users className="size-3" />
+                          {status.teamInfo.seatsUsed} of {status.teamInfo.seatCount} used
+                        </span>
+                      </div>
+                    </>
                   )}
 
                   {status.devicesUsed !== undefined && status.devicesAllowed !== undefined && (

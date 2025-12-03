@@ -1,19 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db, licenses, activations } from "@/db";
+import { db, licenses, activations, teams, teamMembers, customers } from "@/db";
 import { eq, and } from "drizzle-orm";
 import { randomUUID } from "crypto";
+import { isTeamPlan } from "@/lib/license";
+import type { TeamInfo, TeamRole } from "@shared/index";
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     console.log("[activate] Request body:", JSON.stringify(body));
 
-    const { license_key: rawLicenseKey, name, device_id, os, app_version } = body as {
+    const { license_key: rawLicenseKey, name, device_id, os, app_version, email } = body as {
       license_key: string;
       name: string;
       device_id?: string;
       os?: string;
       app_version?: string;
+      email?: string;
     };
 
     // Normalize license key to uppercase (our keys are uppercase)
@@ -43,6 +46,76 @@ export async function POST(request: NextRequest) {
         { error: `License is ${license.status}` },
         { status: 400 }
       );
+    }
+
+    // For team plans, verify user is a member of the team
+    let teamInfo: TeamInfo | undefined;
+    let userRole: TeamRole = "member";
+
+    if (isTeamPlan(license.plan) && license.teamId) {
+      // Get team info
+      const team = await db.query.teams.findFirst({
+        where: eq(teams.id, license.teamId),
+      });
+
+      if (!team) {
+        return NextResponse.json(
+          { error: "Team not found for this license" },
+          { status: 400 }
+        );
+      }
+
+      // Find or create customer for this email
+      let customer = email
+        ? await db.query.customers.findFirst({
+            where: eq(customers.email, email.toLowerCase()),
+          })
+        : null;
+
+      if (!customer && email) {
+        // Create customer if doesn't exist
+        const [newCustomer] = await db
+          .insert(customers)
+          .values({ email: email.toLowerCase() })
+          .returning();
+        customer = newCustomer;
+      }
+
+      // Check if user is a team member
+      const membership = customer
+        ? await db.query.teamMembers.findFirst({
+            where: and(
+              eq(teamMembers.teamId, license.teamId),
+              eq(teamMembers.customerId, customer.id),
+              eq(teamMembers.status, "active")
+            ),
+          })
+        : null;
+
+      if (!membership) {
+        return NextResponse.json(
+          { error: "You are not a member of this team. Ask the team owner to invite you." },
+          { status: 403 }
+        );
+      }
+
+      userRole = membership.role as TeamRole;
+
+      // Count active team members
+      const activeMembers = await db.query.teamMembers.findMany({
+        where: and(
+          eq(teamMembers.teamId, license.teamId),
+          eq(teamMembers.status, "active")
+        ),
+      });
+
+      teamInfo = {
+        id: team.id,
+        name: team.name,
+        seatCount: license.seatCount || 1,
+        seatsUsed: activeMembers.length,
+        role: userRole,
+      };
     }
 
     // Check if this device is already activated
@@ -105,6 +178,14 @@ export async function POST(request: NextRequest) {
     const now = new Date();
     const updatesAvailable = license.updatesUntil > now;
 
+    // Get current activation count
+    const currentActivations = await db.query.activations.findMany({
+      where: and(
+        eq(activations.licenseId, license.id),
+        eq(activations.isActive, true)
+      ),
+    });
+
     return NextResponse.json({
       success: true,
       id: activation.instanceId,
@@ -113,6 +194,9 @@ export async function POST(request: NextRequest) {
       updates_available: updatesAvailable,
       updates_until: license.updatesUntil.toISOString(),
       plan: license.plan,
+      devices_used: currentActivations.length,
+      devices_allowed: license.maxActivations,
+      ...(teamInfo && { team_info: teamInfo }),
     });
   } catch (error) {
     console.error("[activate] Error:", error);

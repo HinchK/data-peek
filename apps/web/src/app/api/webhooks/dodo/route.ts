@@ -1,7 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db, customers, licenses, webhookEvents } from "@/db";
+import { db, customers, licenses, webhookEvents, teams, teamMembers } from "@/db";
 import { eq } from "drizzle-orm";
-import { calculateUpdatesUntil, generateLicenseKey } from "@/lib/license";
+import {
+  calculateUpdatesUntil,
+  generateLicenseKey,
+  isTeamPlan,
+  getPrefixForPlan,
+  getMaxActivations,
+  PLAN_CONFIG,
+  PlanType,
+} from "@/lib/license";
 import { Resend } from "resend";
 import DodoPayments from "dodopayments";
 
@@ -54,7 +62,10 @@ async function sendWelcomeEmail(
   email: string,
   name: string | undefined,
   licenseKey: string,
-  updatesUntil: Date
+  updatesUntil: Date,
+  plan: PlanType = "pro",
+  seatCount: number = 1,
+  teamName?: string
 ) {
   console.log(`Attempting to send welcome email to: ${email}`);
 
@@ -65,18 +76,22 @@ async function sendWelcomeEmail(
 
   console.log(`RESEND_API_KEY is configured (length: ${process.env.RESEND_API_KEY.length})`);
 
+  const isTeam = isTeamPlan(plan);
+  const planName = plan === "pro" ? "Pro" : plan === "team" ? "Team" : "Enterprise";
+  const maxActivations = getMaxActivations(plan, seatCount);
+
   try {
     const result = await resend.emails.send({
       from: "data-peek <hello@send.datapeek.dev>",
       to: email,
-      subject: "Your data-peek Pro license 🎉",
+      subject: `Your data-peek ${planName} license 🎉`,
       html: `
         <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h1 style="color: #22d3ee;">Welcome to data-peek Pro!</h1>
+          <h1 style="color: #22d3ee;">Welcome to data-peek ${planName}!</h1>
 
           <p>Hi ${name || "there"},</p>
 
-          <p>Thank you for purchasing data-peek Pro! Your license is ready to use.</p>
+          <p>Thank you for purchasing data-peek ${planName}! Your license is ready to use.</p>
 
           <div style="background: #111113; border: 1px solid #27272a; border-radius: 12px; padding: 24px; margin: 24px 0;">
             <p style="color: #a1a1aa; margin: 0 0 8px 0; font-size: 14px;">Your License Key:</p>
@@ -93,9 +108,16 @@ async function sendWelcomeEmail(
           <h3>Your license includes:</h3>
           <ul>
             <li>✓ 1 year of updates (until ${updatesUntil.toLocaleDateString()})</li>
-            <li>✓ 3 device activations</li>
-            <li>✓ All Pro features unlocked</li>
+            ${isTeam ? `<li>✓ ${seatCount} team seats${teamName ? ` for "${teamName}"` : ""}</li>` : ""}
+            <li>✓ ${maxActivations} device activations${isTeam ? " total" : ""}</li>
+            <li>✓ All ${planName} features unlocked</li>
           </ul>
+
+          ${isTeam ? `
+          <h3>Team Management:</h3>
+          <p>As the team owner, you can invite team members to use data-peek with your license.
+          Visit your <a href="https://datapeek.dev/team" style="color: #22d3ee;">team dashboard</a> to manage members.</p>
+          ` : ""}
 
           <p>Need help? Just reply to this email.</p>
 
@@ -226,16 +248,52 @@ export async function POST(request: NextRequest) {
           break;
         }
 
-        // Generate license key and create license
-        const licenseKey = generateLicenseKey("DPRO");
-        const updatesUntil = calculateUpdatesUntil();
+        // Determine plan from metadata
+        const plan = (data.metadata?.plan as PlanType) || "pro";
+        const isTeam = isTeamPlan(plan);
+        const seatCount = isTeam
+          ? parseInt(data.metadata?.seat_count || PLAN_CONFIG.team.defaultSeatCount.toString(), 10)
+          : 1;
+        const teamName = data.metadata?.team_name;
 
+        // Generate license key with appropriate prefix
+        const licenseKey = generateLicenseKey(getPrefixForPlan(plan));
+        const updatesUntil = calculateUpdatesUntil();
+        const maxActivations = getMaxActivations(plan, seatCount);
+
+        // For team plans, create a team and add owner as first member
+        let teamId: string | undefined;
+        if (isTeam) {
+          const [newTeam] = await db
+            .insert(teams)
+            .values({
+              name: teamName || `${customer.name || customer.email}'s Team`,
+              ownerId: customer.id,
+            })
+            .returning();
+          teamId = newTeam.id;
+
+          // Add the owner as the first team member
+          await db.insert(teamMembers).values({
+            teamId: newTeam.id,
+            customerId: customer.id,
+            role: "owner",
+            status: "active",
+            joinedAt: new Date(),
+          });
+
+          console.log(`Team created: ${newTeam.name} (${newTeam.id})`);
+        }
+
+        // Create the license
         await db.insert(licenses).values({
           customerId: customer.id,
           licenseKey,
-          plan: "pro",
+          plan,
           status: "active",
-          maxActivations: 3,
+          maxActivations,
+          teamId,
+          seatCount,
           dodoPaymentId: data.payment_id,
           dodoProductId: data.product_id,
           updatesUntil,
@@ -246,10 +304,13 @@ export async function POST(request: NextRequest) {
           customer.email,
           customer.name || undefined,
           licenseKey,
-          updatesUntil
+          updatesUntil,
+          plan,
+          seatCount,
+          teamName
         );
 
-        console.log(`Payment succeeded for ${data.customer.email}: ${data.payment_id}, license: ${licenseKey}`);
+        console.log(`Payment succeeded for ${data.customer.email}: ${data.payment_id}, plan: ${plan}, license: ${licenseKey}`);
         break;
       }
 

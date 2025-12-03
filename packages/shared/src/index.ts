@@ -785,6 +785,59 @@ export interface CustomTypeInfo {
 export type LicenseType = 'personal' | 'individual' | 'team';
 
 /**
+ * License plan type (maps to database plan field)
+ */
+export type LicensePlan = 'pro' | 'team' | 'enterprise';
+
+/**
+ * Team member role
+ */
+export type TeamRole = 'owner' | 'admin' | 'member';
+
+/**
+ * Team member status
+ */
+export type TeamMemberStatus = 'pending' | 'active' | 'removed';
+
+/**
+ * Team information
+ */
+export interface TeamInfo {
+  /** Team ID */
+  id: string;
+  /** Team name */
+  name: string;
+  /** Number of seats in the plan */
+  seatCount: number;
+  /** Number of seats currently used */
+  seatsUsed: number;
+  /** User's role in the team */
+  role: TeamRole;
+}
+
+/**
+ * Team member information
+ */
+export interface TeamMemberInfo {
+  /** Member ID */
+  id: string;
+  /** Customer ID */
+  customerId: string;
+  /** Member email */
+  email: string;
+  /** Member name */
+  name?: string;
+  /** Role in team */
+  role: TeamRole;
+  /** Status */
+  status: TeamMemberStatus;
+  /** When they joined */
+  joinedAt?: string;
+  /** Number of devices activated */
+  devicesUsed?: number;
+}
+
+/**
  * Stored license data (encrypted locally)
  */
 export interface LicenseData {
@@ -804,6 +857,8 @@ export interface LicenseData {
   lastValidated: string;
   /** Dodo instance ID for this activation (needed for deactivation) */
   instanceId?: string;
+  /** Team info (for team licenses) */
+  teamInfo?: TeamInfo;
 }
 
 /**
@@ -816,6 +871,8 @@ export interface LicenseStatus {
   isCommercial: boolean;
   /** Type of license */
   type: LicenseType;
+  /** License plan (pro, team, enterprise) */
+  plan?: LicensePlan;
   /** Expiry date (null for personal) */
   expiresAt: string | null;
   /** Days until expiry (null for personal or expired) */
@@ -830,6 +887,8 @@ export interface LicenseStatus {
   devicesUsed?: number;
   /** Maximum devices allowed */
   devicesAllowed?: number;
+  /** Team info (for team licenses) */
+  teamInfo?: TeamInfo;
 }
 
 /**
@@ -847,10 +906,12 @@ export interface LicenseActivationResponse {
   success: boolean;
   error?: string;
   type?: LicenseType;
+  plan?: LicensePlan;
   expiresAt?: string;
   perpetualVersion?: string;
   devicesUsed?: number;
   devicesAllowed?: number;
+  teamInfo?: TeamInfo;
 }
 
 /**
@@ -859,6 +920,61 @@ export interface LicenseActivationResponse {
 export interface LicenseDeactivationResponse {
   success: boolean;
   error?: string;
+}
+
+/**
+ * Team checkout request
+ */
+export interface TeamCheckoutRequest {
+  email?: string;
+  name?: string;
+  teamName: string;
+  seatCount: number;
+}
+
+/**
+ * Team checkout response
+ */
+export interface TeamCheckoutResponse {
+  checkout_url: string;
+  session_id: string;
+}
+
+/**
+ * Team invite request
+ */
+export interface TeamInviteRequest {
+  licenseKey: string;
+  memberEmail: string;
+  role?: TeamRole;
+}
+
+/**
+ * Team invite response
+ */
+export interface TeamInviteResponse {
+  success: boolean;
+  error?: string;
+  memberId?: string;
+}
+
+/**
+ * Team member list response
+ */
+export interface TeamMembersResponse {
+  success: boolean;
+  error?: string;
+  members?: TeamMemberInfo[];
+  seatCount?: number;
+  seatsUsed?: number;
+}
+
+/**
+ * Remove team member request
+ */
+export interface RemoveTeamMemberRequest {
+  licenseKey: string;
+  memberId: string;
 }
 
 // ============================================
