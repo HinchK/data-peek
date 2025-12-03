@@ -1,6 +1,13 @@
 # data-peek
 
+
+![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/Rohithgilla12/data-peek/total?style=for-the-badge)
+
+
+
 A minimal, fast SQL client desktop application with AI-powered querying. Built for developers who want to quickly peek at their data without the bloat. Supports PostgreSQL, MySQL, and Microsoft SQL Server.
+
+
 
 <p align="center">
   <img src="https://pub-84538e6ab6f94b80b94b8aa308ad1270.r2.dev/hero.png" alt="Data Peek - SQL Client" width="100%" />
@@ -32,6 +39,7 @@ A minimal, fast SQL client desktop application with AI-powered querying. Built f
 <summary>Light Mode</summary>
 <img src="https://pub-84538e6ab6f94b80b94b8aa308ad1270.r2.dev/light-mode.png" alt="Light Mode" width="100%" />
 </details>
+
 
 ## Features
 
