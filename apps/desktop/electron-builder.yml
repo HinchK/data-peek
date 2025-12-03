@@ -24,8 +24,6 @@ mac:
   entitlementsInherit: build/entitlements.mac.plist
   extendInfo:
     CFBundleDisplayName: Data Peek
-    NSDocumentsFolderUsageDescription: Application requests access to the user's Documents folder.
-    NSDownloadsFolderUsageDescription: Application requests access to the user's Downloads folder.
   hardenedRuntime: true
   gatekeeperAssess: false
   notarize: true
