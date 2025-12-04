@@ -105,7 +105,10 @@ export function QueryEditor() {
                 <Play className="size-3.5" />
               )}
               Run
-              <kbd className="ml-1 rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium">{keys.mod}{keys.enter}</kbd>
+              <kbd className="ml-1 rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium">
+                {keys.mod}
+                {keys.enter}
+              </kbd>
             </Button>
             <Button
               variant="ghost"
@@ -116,7 +119,10 @@ export function QueryEditor() {
             >
               <Wand2 className="size-3.5" />
               Format
-              <kbd className="ml-1 rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium">{keys.mod}{keys.shift}F</kbd>
+              <kbd className="ml-1 rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium">
+                {keys.mod}
+                {keys.shift}F
+              </kbd>
             </Button>
             <Button
               variant="ghost"

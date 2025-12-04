@@ -20,10 +20,13 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 
 const SIDEBAR_COOKIE_NAME = 'sidebar_state'
 const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7
-const SIDEBAR_WIDTH = '16rem'
+const SIDEBAR_WIDTH_DEFAULT = 320 // 20rem in pixels
+const SIDEBAR_WIDTH_MIN = 224 // 14rem in pixels
+const SIDEBAR_WIDTH_MAX = 512 // 32rem in pixels
 const SIDEBAR_WIDTH_MOBILE = '18rem'
 const SIDEBAR_WIDTH_ICON = '3rem'
 const SIDEBAR_KEYBOARD_SHORTCUT = 'b'
+const SIDEBAR_WIDTH_STORAGE_KEY = 'sidebar_width'
 
 type SidebarContextProps = {
   state: 'expanded' | 'collapsed'
@@ -33,6 +36,10 @@ type SidebarContextProps = {
   setOpenMobile: (open: boolean) => void
   isMobile: boolean
   toggleSidebar: () => void
+  sidebarWidth: number
+  setSidebarWidth: (width: number) => void
+  isResizing: boolean
+  setIsResizing: (isResizing: boolean) => void
 }
 
 const SidebarContext = React.createContext<SidebarContextProps | null>(null)
@@ -61,6 +68,27 @@ function SidebarProvider({
 }) {
   const isMobile = useIsMobile()
   const [openMobile, setOpenMobile] = React.useState(false)
+  const [isResizing, setIsResizing] = React.useState(false)
+
+  // Initialize sidebar width from localStorage or default
+  const [sidebarWidth, setSidebarWidthState] = React.useState(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem(SIDEBAR_WIDTH_STORAGE_KEY)
+      if (stored) {
+        const parsed = parseInt(stored, 10)
+        if (!isNaN(parsed) && parsed >= SIDEBAR_WIDTH_MIN && parsed <= SIDEBAR_WIDTH_MAX) {
+          return parsed
+        }
+      }
+    }
+    return SIDEBAR_WIDTH_DEFAULT
+  })
+
+  const setSidebarWidth = React.useCallback((width: number) => {
+    const clampedWidth = Math.min(SIDEBAR_WIDTH_MAX, Math.max(SIDEBAR_WIDTH_MIN, width))
+    setSidebarWidthState(clampedWidth)
+    localStorage.setItem(SIDEBAR_WIDTH_STORAGE_KEY, String(clampedWidth))
+  }, [])
 
   // This is the internal state of the sidebar.
   // We use openProp and setOpenProp for control from outside the component.
@@ -121,9 +149,25 @@ function SidebarProvider({
       isMobile,
       openMobile,
       setOpenMobile,
-      toggleSidebar
+      toggleSidebar,
+      sidebarWidth,
+      setSidebarWidth,
+      isResizing,
+      setIsResizing
     }),
-    [state, open, setOpen, isMobile, openMobile, setOpenMobile, toggleSidebar]
+    [
+      state,
+      open,
+      setOpen,
+      isMobile,
+      openMobile,
+      setOpenMobile,
+      toggleSidebar,
+      sidebarWidth,
+      setSidebarWidth,
+      isResizing,
+      setIsResizing
+    ]
   )
 
   return (
@@ -133,7 +177,7 @@ function SidebarProvider({
           data-slot="sidebar-wrapper"
           style={
             {
-              '--sidebar-width': SIDEBAR_WIDTH,
+              '--sidebar-width': `${sidebarWidth}px`,
               '--sidebar-width-icon': SIDEBAR_WIDTH_ICON,
               ...style
             } as React.CSSProperties
@@ -275,20 +319,65 @@ function SidebarTrigger({ className, onClick, ...props }: React.ComponentProps<t
   )
 }
 
-function SidebarRail({ className, ...props }: React.ComponentProps<'button'>) {
-  const { toggleSidebar } = useSidebar()
+function SidebarRail({ className, ...props }: React.ComponentProps<'div'>) {
+  const { toggleSidebar, sidebarWidth, setSidebarWidth, state, setIsResizing } = useSidebar()
+  const isDragging = React.useRef(false)
+
+  const handleMouseDown = React.useCallback(
+    (e: React.MouseEvent) => {
+      if (state === 'collapsed') {
+        toggleSidebar()
+        return
+      }
+
+      e.preventDefault()
+      isDragging.current = true
+      setIsResizing(true)
+      const startX = e.clientX
+      const startWidth = sidebarWidth
+
+      const onMouseMove = (e: MouseEvent) => {
+        if (!isDragging.current) return
+        const delta = e.clientX - startX
+        const newWidth = startWidth + delta
+        setSidebarWidth(newWidth)
+      }
+
+      const onMouseUp = () => {
+        isDragging.current = false
+        setIsResizing(false)
+        document.removeEventListener('mousemove', onMouseMove)
+        document.removeEventListener('mouseup', onMouseUp)
+        document.body.style.cursor = ''
+        document.body.style.userSelect = ''
+      }
+
+      document.body.style.cursor = 'col-resize'
+      document.body.style.userSelect = 'none'
+      document.addEventListener('mousemove', onMouseMove)
+      document.addEventListener('mouseup', onMouseUp)
+    },
+    [sidebarWidth, setSidebarWidth, state, toggleSidebar, setIsResizing]
+  )
+
+  const handleDoubleClick = React.useCallback(() => {
+    toggleSidebar()
+  }, [toggleSidebar])
 
   return (
-    <button
+    <div
       data-sidebar="rail"
       data-slot="sidebar-rail"
-      aria-label="Toggle Sidebar"
-      tabIndex={-1}
-      onClick={toggleSidebar}
-      title="Toggle Sidebar"
+      aria-label="Resize Sidebar"
+      role="separator"
+      aria-orientation="vertical"
+      onMouseDown={handleMouseDown}
+      onDoubleClick={handleDoubleClick}
+      title="Drag to resize, double-click to collapse"
       className={cn(
-        'hover:after:bg-sidebar-border absolute inset-y-0 z-20 hidden w-4 -translate-x-1/2 transition-all ease-linear group-data-[side=left]:-right-4 group-data-[side=right]:left-0 after:absolute after:inset-y-0 after:left-1/2 after:w-[2px] sm:flex',
-        'in-data-[side=left]:cursor-w-resize in-data-[side=right]:cursor-e-resize',
+        'absolute inset-y-0 z-20 hidden w-4 -translate-x-1/2 sm:flex items-center justify-center',
+        'group-data-[side=left]:-right-4 group-data-[side=right]:left-0',
+        'cursor-col-resize',
         '[[data-side=left][data-state=collapsed]_&]:cursor-e-resize [[data-side=right][data-state=collapsed]_&]:cursor-w-resize',
         'hover:group-data-[collapsible=offcanvas]:bg-sidebar group-data-[collapsible=offcanvas]:translate-x-0 group-data-[collapsible=offcanvas]:after:left-full',
         '[[data-side=left][data-collapsible=offcanvas]_&]:-right-2',
@@ -296,7 +385,14 @@ function SidebarRail({ className, ...props }: React.ComponentProps<'button'>) {
         className
       )}
       {...props}
-    />
+    >
+      <div
+        className={cn(
+          'h-8 w-1 rounded-full bg-border/50 transition-colors',
+          'hover:bg-border group-hover:bg-border'
+        )}
+      />
+    </div>
   )
 }
 

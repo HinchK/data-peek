@@ -256,7 +256,9 @@ const ensureCompletionProvider = (monacoInstance: Monaco): void => {
         const tableOrSchemaName = dotMatch[1].toLowerCase()
 
         // Check if it's a schema name - suggest tables
-        const matchingSchema = currentSchemas.find((s) => s.name.toLowerCase() === tableOrSchemaName)
+        const matchingSchema = currentSchemas.find(
+          (s) => s.name.toLowerCase() === tableOrSchemaName
+        )
         if (matchingSchema) {
           matchingSchema.tables.forEach((table) => {
             suggestions.push({

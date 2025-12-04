@@ -143,7 +143,8 @@ export function NavActions() {
             )}
             <span className="hidden sm:inline">Run</span>
             <kbd className="ml-0.5 hidden rounded bg-primary-foreground/20 px-1 py-0.5 text-[9px] font-medium sm:inline">
-              {keys.mod}{keys.enter}
+              {keys.mod}
+              {keys.enter}
             </kbd>
           </Button>
         </TooltipTrigger>
@@ -166,7 +167,9 @@ export function NavActions() {
           </Button>
         </TooltipTrigger>
         <TooltipContent side="bottom">
-          <p>Format SQL ({keys.mod}+{keys.shift}+F)</p>
+          <p>
+            Format SQL ({keys.mod}+{keys.shift}+F)
+          </p>
         </TooltipContent>
       </Tooltip>
 

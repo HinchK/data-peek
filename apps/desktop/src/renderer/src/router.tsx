@@ -504,7 +504,9 @@ function SettingsPage() {
     hideQueryEditorByDefault,
     expandJsonByDefault,
     setHideQueryEditorByDefault,
-    setExpandJsonByDefault
+    setExpandJsonByDefault,
+    hideQuickQueryPanel,
+    setHideQuickQueryPanel
   } = useSettingsStore()
 
   return (
@@ -603,7 +605,10 @@ function SettingsPage() {
                 <ShortcutRow keys={[keys.mod, 'W']} description="Close current tab" />
                 <ShortcutRow keys={[keys.mod, '1-9']} description="Switch to tab by number" />
                 <ShortcutRow keys={[keys.mod, keys.alt, '→']} description="Switch to next tab" />
-                <ShortcutRow keys={[keys.mod, keys.alt, '←']} description="Switch to previous tab" />
+                <ShortcutRow
+                  keys={[keys.mod, keys.alt, '←']}
+                  description="Switch to previous tab"
+                />
               </div>
             </div>
 
@@ -688,6 +693,17 @@ function SettingsPage() {
               id="hide-editor"
               checked={hideQueryEditorByDefault}
               onCheckedChange={setHideQueryEditorByDefault}
+            />
+          </div>
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <Label htmlFor="hide-quick-query-panel">Hide quick query panel by default</Label>
+              <p className="text-xs text-muted-foreground">Hide the quick query panel by default</p>
+            </div>
+            <Switch
+              id="hide-quick-query-panel"
+              checked={hideQuickQueryPanel}
+              onCheckedChange={setHideQuickQueryPanel}
             />
           </div>
         </div>

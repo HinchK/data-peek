@@ -13,10 +13,12 @@ import {
   SidebarMenuItem
 } from '@/components/ui/sidebar'
 import { SQLEditor } from '@/components/sql-editor'
-import { useQueryStore, useConnectionStore, useTabStore } from '@/stores'
+import { useQueryStore, useConnectionStore, useTabStore, useSettingsStore } from '@/stores'
 import { cn } from '@/lib/utils'
 
 export function SidebarQuickQuery() {
+  const hideQuickQueryPanel = useSettingsStore((s) => s.hideQuickQueryPanel)
+
   const [isOpen, setIsOpen] = React.useState(true)
   const [quickQuery, setQuickQuery] = React.useState('')
 
@@ -56,6 +58,10 @@ export function SidebarQuickQuery() {
     if (!activeConnection) return
     // Create a new query tab with the recent query
     createQueryTab(activeConnection.id, query)
+  }
+
+  if (hideQuickQueryPanel) {
+    return <></>
   }
 
   return (

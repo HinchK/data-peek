@@ -1,9 +1,10 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Bookmark, MoreHorizontal, Play, Copy, Trash2, Pencil } from 'lucide-react'
+import { Bookmark, ChevronRight, MoreHorizontal, Play, Copy, Trash2, Pencil } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -79,6 +80,7 @@ export function SavedQueries() {
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [editingQuery, setEditingQuery] = useState<SavedQuery | null>(null)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+  const [isExpanded, setIsExpanded] = useState(false)
 
   // Initialize on mount
   useEffect(() => {
@@ -126,136 +128,156 @@ export function SavedQueries() {
   }
 
   return (
-    <SidebarGroup className="group-data-[collapsible=icon]:hidden">
-      <SidebarGroupLabel>Saved Queries</SidebarGroupLabel>
-      <SidebarGroupContent>
-        <SidebarMenu>
-          {sortedQueries.length === 0 ? (
-            <div className="px-2 py-4 text-xs text-muted-foreground text-center">
-              No saved queries yet
-            </div>
-          ) : (
-            sortedQueries.slice(0, 5).map((item) => {
-              const queryType = getQueryType(item.query)
-              return (
-                <SidebarMenuItem key={item.id}>
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <SidebarMenuButton
-                          onClick={() => handleLoadQuery(item)}
-                          className="h-auto py-1.5"
-                        >
-                          <div className="flex flex-col items-start gap-0.5 w-full min-w-0">
-                            <div className="flex items-center gap-1.5 w-full">
-                              <Badge
-                                variant="outline"
-                                className={`text-[9px] px-1 py-0 shrink-0 ${getQueryTypeColor(queryType)}`}
-                              >
-                                {queryType}
-                              </Badge>
-                              <span className="text-xs truncate font-medium">{item.name}</span>
+    <Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
+      <SidebarGroup className="group-data-[collapsible=icon]:hidden">
+        <SidebarGroupLabel className="flex items-center">
+          <CollapsibleTrigger className="flex items-center gap-1 flex-1">
+            <ChevronRight
+              className={`size-4 transition-transform ${isExpanded ? 'rotate-90' : ''}`}
+            />
+            <span>Saved Queries</span>
+            {sortedQueries.length > 0 && (
+              <Badge variant="outline" className="ml-1 text-[11px] px-1.5 py-0">
+                {sortedQueries.length}
+              </Badge>
+            )}
+          </CollapsibleTrigger>
+        </SidebarGroupLabel>
+        <CollapsibleContent>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {sortedQueries.length === 0 ? (
+                <div className="px-2 py-4 text-xs text-muted-foreground text-center">
+                  No saved queries yet
+                </div>
+              ) : (
+                sortedQueries.slice(0, 5).map((item) => {
+                  const queryType = getQueryType(item.query)
+                  return (
+                    <SidebarMenuItem key={item.id}>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <SidebarMenuButton
+                              onClick={() => handleLoadQuery(item)}
+                              className="h-auto py-1.5"
+                            >
+                              <div className="flex flex-col items-start gap-0.5 w-full min-w-0">
+                                <div className="flex items-center gap-1.5 w-full">
+                                  <Badge
+                                    variant="outline"
+                                    className={`text-[11px] px-1.5 py-0 shrink-0 ${getQueryTypeColor(queryType)}`}
+                                  >
+                                    {queryType}
+                                  </Badge>
+                                  <span className="text-xs truncate font-medium">{item.name}</span>
+                                </div>
+                                <span className="text-[11px] text-muted-foreground font-mono truncate w-full">
+                                  {truncateQuery(item.query)}
+                                </span>
+                              </div>
+                            </SidebarMenuButton>
+                          </TooltipTrigger>
+                          <TooltipContent side="right" className="max-w-sm">
+                            <div className="space-y-1">
+                              <p className="font-medium">{item.name}</p>
+                              {item.description && (
+                                <p className="text-xs text-muted-foreground">{item.description}</p>
+                              )}
+                              <pre className="text-xs font-mono whitespace-pre-wrap">
+                                {item.query}
+                              </pre>
                             </div>
-                            <span className="text-[10px] text-muted-foreground font-mono truncate w-full">
-                              {truncateQuery(item.query)}
-                            </span>
-                          </div>
-                        </SidebarMenuButton>
-                      </TooltipTrigger>
-                      <TooltipContent side="right" className="max-w-sm">
-                        <div className="space-y-1">
-                          <p className="font-medium">{item.name}</p>
-                          {item.description && (
-                            <p className="text-xs text-muted-foreground">{item.description}</p>
-                          )}
-                          <pre className="text-xs font-mono whitespace-pre-wrap">{item.query}</pre>
-                        </div>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <SidebarMenuAction showOnHover>
-                        <MoreHorizontal />
-                        <span className="sr-only">More</span>
-                      </SidebarMenuAction>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent
-                      className="w-48 rounded-lg"
-                      side={isMobile ? 'bottom' : 'right'}
-                      align={isMobile ? 'end' : 'start'}
-                    >
-                      <DropdownMenuItem onClick={() => handleLoadQuery(item)}>
-                        <Play className="text-muted-foreground" />
-                        <span>Open in new tab</span>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => navigator.clipboard.writeText(item.query)}>
-                        <Copy className="text-muted-foreground" />
-                        <span>Copy query</span>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleEditQuery(item)}>
-                        <Pencil className="text-muted-foreground" />
-                        <span>Edit</span>
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem
-                        className="text-red-400"
-                        onClick={() => handleDeleteQuery(item.id)}
-                      >
-                        <Trash2 className="text-red-400" />
-                        <span>Delete</span>
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <SidebarMenuAction showOnHover>
+                            <MoreHorizontal />
+                            <span className="sr-only">More</span>
+                          </SidebarMenuAction>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent
+                          className="w-48 rounded-lg"
+                          side={isMobile ? 'bottom' : 'right'}
+                          align={isMobile ? 'end' : 'start'}
+                        >
+                          <DropdownMenuItem onClick={() => handleLoadQuery(item)}>
+                            <Play className="text-muted-foreground" />
+                            <span>Open in new tab</span>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => navigator.clipboard.writeText(item.query)}
+                          >
+                            <Copy className="text-muted-foreground" />
+                            <span>Copy query</span>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleEditQuery(item)}>
+                            <Pencil className="text-muted-foreground" />
+                            <span>Edit</span>
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            className="text-red-400"
+                            onClick={() => handleDeleteQuery(item.id)}
+                          >
+                            <Trash2 className="text-red-400" />
+                            <span>Delete</span>
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </SidebarMenuItem>
+                  )
+                })
+              )}
+              {sortedQueries.length > 5 && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    className="text-sidebar-foreground/70"
+                    onClick={() => setIsDialogOpen(true)}
+                  >
+                    <Bookmark className="size-4" />
+                    <span>View all ({sortedQueries.length})</span>
+                  </SidebarMenuButton>
                 </SidebarMenuItem>
-              )
-            })
-          )}
-          {sortedQueries.length > 5 && (
-            <SidebarMenuItem>
-              <SidebarMenuButton
-                className="text-sidebar-foreground/70"
-                onClick={() => setIsDialogOpen(true)}
-              >
-                <Bookmark className="size-4" />
-                <span>View all ({sortedQueries.length})</span>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          )}
-          {sortedQueries.length > 0 && sortedQueries.length <= 5 && (
-            <SidebarMenuItem>
-              <SidebarMenuButton
-                className="text-sidebar-foreground/70"
-                onClick={() => setIsDialogOpen(true)}
-              >
-                <MoreHorizontal className="size-4" />
-                <span>Manage saved queries</span>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          )}
-        </SidebarMenu>
-      </SidebarGroupContent>
+              )}
+              {sortedQueries.length > 0 && sortedQueries.length <= 5 && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    className="text-sidebar-foreground/70"
+                    onClick={() => setIsDialogOpen(true)}
+                  >
+                    <MoreHorizontal className="size-4" />
+                    <span>Manage saved queries</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </CollapsibleContent>
 
-      <SavedQueriesDialog
-        open={isDialogOpen}
-        onOpenChange={setIsDialogOpen}
-        onEditQuery={(query) => {
-          setIsDialogOpen(false)
-          handleEditQuery(query)
-        }}
-      />
-
-      {editingQuery && (
-        <SaveQueryDialog
-          open={isEditDialogOpen}
-          onOpenChange={(open) => {
-            setIsEditDialogOpen(open)
-            if (!open) setEditingQuery(null)
+        <SavedQueriesDialog
+          open={isDialogOpen}
+          onOpenChange={setIsDialogOpen}
+          onEditQuery={(query) => {
+            setIsDialogOpen(false)
+            handleEditQuery(query)
           }}
-          query={editingQuery.query}
-          editingQuery={editingQuery}
         />
-      )}
-    </SidebarGroup>
+
+        {editingQuery && (
+          <SaveQueryDialog
+            open={isEditDialogOpen}
+            onOpenChange={(open) => {
+              setIsEditDialogOpen(open)
+              if (!open) setEditingQuery(null)
+            }}
+            query={editingQuery.query}
+            editingQuery={editingQuery}
+          />
+        )}
+      </SidebarGroup>
+    </Collapsible>
   )
 }

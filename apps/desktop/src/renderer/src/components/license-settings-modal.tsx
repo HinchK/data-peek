@@ -1,6 +1,14 @@
 'use client'
 
-import { Loader2, Check, AlertCircle, ExternalLink, LogOut, Monitor, CreditCard } from 'lucide-react'
+import {
+  Loader2,
+  Check,
+  AlertCircle,
+  ExternalLink,
+  LogOut,
+  Monitor,
+  CreditCard
+} from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,

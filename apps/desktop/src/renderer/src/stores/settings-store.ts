@@ -6,6 +6,7 @@ export interface AppSettings {
   hideQueryEditorByDefault: boolean
   // JSON display settings
   expandJsonByDefault: boolean
+  hideQuickQueryPanel: boolean
   jsonExpandDepth: number
 }
 
@@ -15,22 +16,24 @@ interface SettingsState extends AppSettings {
   setExpandJsonByDefault: (value: boolean) => void
   setJsonExpandDepth: (depth: number) => void
   resetSettings: () => void
+  setHideQuickQueryPanel: (value: boolean) => void
 }
 
 const defaultSettings: AppSettings = {
   hideQueryEditorByDefault: false,
   expandJsonByDefault: false,
-  jsonExpandDepth: 2
+  jsonExpandDepth: 2,
+  hideQuickQueryPanel: true
 }
 
 export const useSettingsStore = create<SettingsState>()(
   persist(
     (set) => ({
       ...defaultSettings,
-
       setHideQueryEditorByDefault: (value) => set({ hideQueryEditorByDefault: value }),
       setExpandJsonByDefault: (value) => set({ expandJsonByDefault: value }),
       setJsonExpandDepth: (depth) => set({ jsonExpandDepth: depth }),
+      setHideQuickQueryPanel: (value) => set({ hideQuickQueryPanel: value }),
       resetSettings: () => set(defaultSettings)
     }),
     {

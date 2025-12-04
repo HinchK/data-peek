@@ -22,8 +22,10 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
   const {
     hideQueryEditorByDefault,
     expandJsonByDefault,
+    hideQuickQueryPanel,
     setHideQueryEditorByDefault,
     setExpandJsonByDefault,
+    setHideQuickQueryPanel,
     resetSettings
   } = useSettingsStore()
 
@@ -55,6 +57,26 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                 id="hide-editor"
                 checked={hideQueryEditorByDefault}
                 onCheckedChange={setHideQueryEditorByDefault}
+              />
+            </div>
+          </div>
+
+          {/* Quick Query Panel */}
+          <div className="space-y-4">
+            <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
+              Quick Query Panel
+            </h3>
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label htmlFor="hide-quick-query-panel">Hide quick query panel by default</Label>
+                <p className="text-xs text-muted-foreground">
+                  Hide the quick query panel by default
+                </p>
+              </div>
+              <Switch
+                id="hide-quick-query-panel"
+                checked={hideQuickQueryPanel}
+                onCheckedChange={setHideQuickQueryPanel}
               />
             </div>
           </div>
