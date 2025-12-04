@@ -94,7 +94,7 @@ type ChatHistoryStore = Record<string, ChatSession[]>
 // Default models for each provider
 const DEFAULT_MODELS: Record<AIProvider, string> = {
   openai: 'gpt-4o',
-  anthropic: 'claude-sonnet-4-20250514',
+  anthropic: 'claude-sonnet-4-5-20250929',
   google: 'gemini-2.5-flash',
   groq: 'llama-3.3-70b-versatile',
   ollama: 'llama3.2'

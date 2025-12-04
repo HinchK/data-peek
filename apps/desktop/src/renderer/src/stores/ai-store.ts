@@ -73,13 +73,23 @@ interface AIState {
   getConversation: (connectionId: string) => AIChatMessage[]
 }
 
+// Default models for each provider (must match main process)
+const DEFAULT_MODELS: Record<AIProvider, string> = {
+  openai: 'gpt-4o',
+  anthropic: 'claude-sonnet-4-5-20250929',
+  google: 'gemini-2.5-flash',
+  groq: 'llama-3.3-70b-versatile',
+  ollama: 'llama3.2'
+}
+
 // Helper to check if multi-provider config is valid
 const isMultiProviderConfigured = (config: AIMultiProviderConfig | null): boolean => {
   if (!config?.providers || !config.activeProvider) return false
   const activeConfig = config.providers[config.activeProvider]
   if (!activeConfig) return false
   if (config.activeProvider === 'ollama') {
-    return !!activeConfig.baseUrl
+    // Ollama works with default localhost URL, so just check if config exists
+    return true
   }
   return !!activeConfig.apiKey
 }
@@ -93,7 +103,9 @@ const deriveLegacyConfig = (multiConfig: AIMultiProviderConfig | null): AIConfig
   return {
     provider: multiConfig.activeProvider,
     apiKey: providerConfig.apiKey,
-    model: multiConfig.activeModels?.[multiConfig.activeProvider] || '',
+    model:
+      multiConfig.activeModels?.[multiConfig.activeProvider] ||
+      DEFAULT_MODELS[multiConfig.activeProvider],
     baseUrl: providerConfig.baseUrl
   }
 }
