@@ -120,9 +120,24 @@ function VirtualizedSchemaItems({
   const virtualizer = useVirtualizer({
     count: items.length,
     getScrollElement: () => parentRef.current,
-    estimateSize: () => 28,
+    estimateSize: (index) => {
+      const item = items[index]
+      if (item.type === 'table') {
+        const tableKey = `${schemaName}.${item.data.name}`
+        return expandedTables.has(tableKey) ? 28 + item.data.columns.length * 24 : 28
+      } else {
+        const routineKey = `${schemaName}.${item.data.name}`
+        const paramCount = item.data.parameters.length + (item.data.returnType ? 1 : 0)
+        return expandedRoutines.has(routineKey) ? 28 + paramCount * 24 : 28
+      }
+    },
     overscan: 5
   })
+
+  // Recalculate sizes when expanded state changes
+  React.useEffect(() => {
+    virtualizer.measure()
+  }, [expandedTables, expandedRoutines, virtualizer])
 
   const virtualItems = virtualizer.getVirtualItems()
 
