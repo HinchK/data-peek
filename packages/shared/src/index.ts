@@ -443,6 +443,19 @@ export interface ChatSession {
 // ============================================
 
 /**
+ * SQLite connection mode (local file only)
+ */
+export type SQLiteMode = "local";
+
+/**
+ * SQLite-specific connection options
+ */
+export interface SQLiteConnectionOptions {
+  /** Connection mode: local file */
+  mode: SQLiteMode;
+}
+
+/**
  * MSSQL-specific connection options
  */
 export interface MSSQLConnectionOptions {
@@ -479,6 +492,8 @@ export interface ConnectionConfig {
   sshConfig?: SSHConfig;
   /** MSSQL-specific connection options (only used when dbType is 'mssql') */
   mssqlOptions?: MSSQLConnectionOptions;
+  /** SQLite-specific connection options (only used when dbType is 'sqlite') */
+  sqliteOptions?: SQLiteConnectionOptions;
 }
 
 export interface SSHConfig {
