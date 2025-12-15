@@ -43,23 +43,46 @@ A minimal, fast SQL client desktop application with AI-powered querying. Built f
 
 ## Features
 
-- **AI Assistant** - Ask questions in plain English, get SQL queries. Generate charts and insights (BYOK)
+### Core
 - **Fast** - Opens in under 2 seconds, low memory footprint
-- **Query Editor** - Monaco editor with SQL syntax highlighting and smart autocomplete with table aliases
-- **Command Palette** - `Cmd+K` to access everything instantly
+- **Multi-Database** - PostgreSQL, MySQL, Microsoft SQL Server, SQLite
+- **SSH Tunnels** - Connect securely through bastion hosts with password or key auth
+- **Secure** - Connection credentials encrypted locally using OS keychain, no telemetry
+
+### AI Assistant
+- **Natural Language Queries** - Ask questions in plain English, get SQL
+- **Multi-Provider** - OpenAI, Anthropic, Google, Groq, and local Ollama models (BYOK)
+- **Charts & Insights** - Generate visualizations and metrics from query results
+- **Schema-Aware** - AI understands your database structure for accurate queries
+
+### Query Editor
+- **Monaco Editor** - SQL syntax highlighting with smart autocomplete
+- **Table Aliases** - Autocomplete understands aliases for complex queries
 - **Multi-tab & Multi-window** - Work with multiple queries and databases simultaneously
-- **Query Telemetry** - Detailed timing breakdown with waterfall visualization and benchmark mode
-- **SSH Tunnels** - Connect securely through bastion hosts
+- **Saved Queries** - Bookmark and organize queries with folders and tags
+- **Command Palette** - `Cmd+K` to access everything instantly
+
+### Performance Analysis
+- **Query Telemetry** - Detailed timing breakdown with waterfall visualization
+- **Benchmark Mode** - Run queries multiple times, get p50/p90/p99 statistics
+- **EXPLAIN Viewer** - Analyze query plans with interactive node breakdown
+- **Cancel Queries** - Stop long-running queries mid-execution
+
+### Data Management
 - **Schema Explorer** - Browse tables, views, stored procedures, and functions
 - **Inline Editing** - Edit table data directly with INSERT/UPDATE/DELETE
-- **ERD Visualization** - See table relationships visually
-- **Query Plans** - Analyze query performance with EXPLAIN ANALYZE viewer
-- **Saved Queries** - Bookmark your favorite queries for quick access
-- **Cancel Queries** - Stop long-running queries mid-execution
-- **Auto-Updates** - Automatic updates with toast notifications
-- **Dark/Light Mode** - Easy on the eyes
+- **Table Designer** - Create and alter tables with full DDL support (columns, indexes, constraints, partitions)
+- **JSON Editor** - Dedicated editor for JSON/JSONB columns
+- **Export** - Export results to CSV, JSON, or Excel
+
+### Visualization
+- **ERD Diagrams** - See table relationships with interactive entity-relationship diagrams
+- **Foreign Key Navigation** - Jump to related records with one click
+
+### User Experience
+- **Dark/Light Mode** - Easy on the eyes, follows system preference
 - **Keyboard-First** - Power users shouldn't need a mouse
-- **Secure** - Connection credentials encrypted locally using OS keychain, no telemetry
+- **Auto-Updates** - Automatic updates with toast notifications
 
 ## Installation
 

@@ -128,3 +128,8 @@ Zustand stores in `src/renderer/src/stores/`:
 5. **Schema Caching**: Schema info is fetched once per connection and stored in Zustand.
 
 6. **Licensing**: Commercial use requires license activation via `apps/web` API. Personal use is free.
+
+7. **Feature Documentation**: When adding a new feature, update all three locations:
+   - `README.md` - Add to the appropriate Features section
+   - `docs/` - Update relevant documentation pages
+   - `apps/web/` - Update marketing site if user-facing
