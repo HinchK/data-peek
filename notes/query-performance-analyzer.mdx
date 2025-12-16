@@ -464,9 +464,9 @@ Auto-running EXPLAIN ANALYZE on every query would be slow and noisy. Let users t
 
 ### 6. Severity levels matter
 Not every sequential scan is a crisis. We use row counts to determine severity:
-- <1000 rows: ignore
+- Under 1000 rows: ignore
 - 1000-10000 rows: warning
-- >10000 rows: critical
+- Over 10000 rows: critical
 
 ## What's Next
 
