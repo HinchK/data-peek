@@ -1,0 +1,174 @@
+{
+  "version": 1,
+  "exportedAt": 1734451200000,
+  "dashboard": {
+    "name": "SaaS Metrics Dashboard",
+    "description": "Key business metrics for the Acme SaaS platform. Requires acme_saas_seed.sql database.",
+    "tags": ["saas", "metrics", "demo"],
+    "layoutCols": 12,
+    "refreshSchedule": {
+      "enabled": false,
+      "preset": "15min"
+    },
+    "widgets": [
+      {
+        "name": "Monthly Revenue",
+        "dataSource": {
+          "type": "inline",
+          "connectionId": "YOUR_CONNECTION_ID",
+          "sql": "SELECT ROUND(SUM(\n    CASE s.plan\n        WHEN 'enterprise' THEN 99900\n        WHEN 'pro' THEN 4900\n        WHEN 'starter' THEN 1900\n        ELSE 0\n    END\n) / 100.0, 2) AS mrr\nFROM subscriptions s\nWHERE s.status = 'active';"
+        },
+        "config": {
+          "widgetType": "kpi",
+          "format": "currency",
+          "label": "Monthly Recurring Revenue",
+          "valueKey": "mrr",
+          "prefix": "$"
+        },
+        "layout": { "x": 0, "y": 0, "w": 3, "h": 2, "minW": 2, "minH": 2 }
+      },
+      {
+        "name": "Active Users",
+        "dataSource": {
+          "type": "inline",
+          "connectionId": "YOUR_CONNECTION_ID",
+          "sql": "SELECT COUNT(DISTINCT user_id) AS active_users\nFROM events\nWHERE created_at > NOW() - INTERVAL '30 days';"
+        },
+        "config": {
+          "widgetType": "kpi",
+          "format": "number",
+          "label": "Active Users (30d)",
+          "valueKey": "active_users"
+        },
+        "layout": { "x": 3, "y": 0, "w": 3, "h": 2, "minW": 2, "minH": 2 }
+      },
+      {
+        "name": "Total Organizations",
+        "dataSource": {
+          "type": "inline",
+          "connectionId": "YOUR_CONNECTION_ID",
+          "sql": "SELECT COUNT(*) AS total_orgs FROM organizations;"
+        },
+        "config": {
+          "widgetType": "kpi",
+          "format": "number",
+          "label": "Total Organizations",
+          "valueKey": "total_orgs"
+        },
+        "layout": { "x": 6, "y": 0, "w": 3, "h": 2, "minW": 2, "minH": 2 }
+      },
+      {
+        "name": "Paid Conversion",
+        "dataSource": {
+          "type": "inline",
+          "connectionId": "YOUR_CONNECTION_ID",
+          "sql": "SELECT\n    ROUND(\n        100.0 * COUNT(*) FILTER (WHERE plan != 'free') / NULLIF(COUNT(*), 0),\n        1\n    ) AS conversion_rate\nFROM organizations;"
+        },
+        "config": {
+          "widgetType": "kpi",
+          "format": "percent",
+          "label": "Paid Conversion Rate",
+          "valueKey": "conversion_rate",
+          "suffix": "%"
+        },
+        "layout": { "x": 9, "y": 0, "w": 3, "h": 2, "minW": 2, "minH": 2 }
+      },
+      {
+        "name": "Revenue Trend",
+        "dataSource": {
+          "type": "inline",
+          "connectionId": "YOUR_CONNECTION_ID",
+          "sql": "SELECT\n    TO_CHAR(DATE_TRUNC('month', i.created_at), 'Mon YYYY') AS month,\n    ROUND(SUM(i.amount_cents) / 100.0, 2) AS revenue\nFROM invoices i\nWHERE i.status = 'paid'\n  AND i.created_at > NOW() - INTERVAL '12 months'\nGROUP BY DATE_TRUNC('month', i.created_at)\nORDER BY DATE_TRUNC('month', i.created_at);"
+        },
+        "config": {
+          "widgetType": "chart",
+          "chartType": "area",
+          "xKey": "month",
+          "yKeys": ["revenue"],
+          "showLegend": false,
+          "showGrid": true,
+          "title": "Revenue Trend",
+          "description": "Monthly revenue from paid invoices"
+        },
+        "layout": { "x": 0, "y": 2, "w": 12, "h": 4, "minW": 4, "minH": 3 }
+      },
+      {
+        "name": "Organizations by Plan",
+        "dataSource": {
+          "type": "inline",
+          "connectionId": "YOUR_CONNECTION_ID",
+          "sql": "SELECT\n    INITCAP(plan::text) AS plan,\n    COUNT(*) AS count\nFROM organizations\nGROUP BY plan\nORDER BY\n    CASE plan\n        WHEN 'free' THEN 1\n        WHEN 'starter' THEN 2\n        WHEN 'pro' THEN 3\n        WHEN 'enterprise' THEN 4\n    END;"
+        },
+        "config": {
+          "widgetType": "chart",
+          "chartType": "bar",
+          "xKey": "plan",
+          "yKeys": ["count"],
+          "showLegend": false,
+          "showGrid": true,
+          "title": "Organizations by Plan",
+          "description": "Distribution across pricing tiers"
+        },
+        "layout": { "x": 0, "y": 6, "w": 6, "h": 4, "minW": 3, "minH": 3 }
+      },
+      {
+        "name": "Revenue by Plan",
+        "dataSource": {
+          "type": "inline",
+          "connectionId": "YOUR_CONNECTION_ID",
+          "sql": "SELECT\n    INITCAP(o.plan::text) AS plan,\n    ROUND(SUM(i.amount_cents) / 100.0, 2) AS revenue\nFROM organizations o\nJOIN subscriptions s ON s.organization_id = o.id\nJOIN invoices i ON i.subscription_id = s.id AND i.status = 'paid'\nGROUP BY o.plan\nORDER BY revenue DESC;"
+        },
+        "config": {
+          "widgetType": "chart",
+          "chartType": "pie",
+          "xKey": "plan",
+          "yKeys": ["revenue"],
+          "showLegend": true,
+          "title": "Revenue by Plan",
+          "description": "Revenue contribution by tier"
+        },
+        "layout": { "x": 6, "y": 6, "w": 6, "h": 4, "minW": 3, "minH": 3 }
+      },
+      {
+        "name": "Top Paying Customers",
+        "dataSource": {
+          "type": "inline",
+          "connectionId": "YOUR_CONNECTION_ID",
+          "sql": "SELECT\n    o.name AS organization,\n    INITCAP(o.plan::text) AS plan,\n    COUNT(DISTINCT m.user_id) AS users,\n    '$' || ROUND(SUM(i.amount_cents) / 100.0, 2) AS total_revenue\nFROM organizations o\nJOIN memberships m ON m.organization_id = o.id\nJOIN subscriptions s ON s.organization_id = o.id\nJOIN invoices i ON i.subscription_id = s.id AND i.status = 'paid'\nGROUP BY o.id, o.name, o.plan\nORDER BY SUM(i.amount_cents) DESC\nLIMIT 10;"
+        },
+        "config": {
+          "widgetType": "table",
+          "maxRows": 10,
+          "columns": ["organization", "plan", "users", "total_revenue"]
+        },
+        "layout": { "x": 0, "y": 10, "w": 12, "h": 4, "minW": 4, "minH": 3 }
+      },
+      {
+        "name": "Recent Signups",
+        "dataSource": {
+          "type": "inline",
+          "connectionId": "YOUR_CONNECTION_ID",
+          "sql": "SELECT\n    u.name,\n    u.email,\n    o.name AS organization,\n    INITCAP(o.plan::text) AS plan,\n    TO_CHAR(u.created_at, 'Mon DD, HH24:MI') AS joined\nFROM users u\nLEFT JOIN memberships m ON m.user_id = u.id\nLEFT JOIN organizations o ON o.id = m.organization_id\nWHERE u.created_at > NOW() - INTERVAL '7 days'\nORDER BY u.created_at DESC\nLIMIT 10;"
+        },
+        "config": {
+          "widgetType": "table",
+          "maxRows": 10
+        },
+        "layout": { "x": 0, "y": 14, "w": 6, "h": 4, "minW": 4, "minH": 3 }
+      },
+      {
+        "name": "Recent Activity",
+        "dataSource": {
+          "type": "inline",
+          "connectionId": "YOUR_CONNECTION_ID",
+          "sql": "SELECT\n    REPLACE(e.type::text, '.', ' ') AS event,\n    u.name AS user_name,\n    o.name AS organization,\n    TO_CHAR(e.created_at, 'Mon DD HH24:MI') AS time\nFROM events e\nLEFT JOIN users u ON u.id = e.user_id\nLEFT JOIN organizations o ON o.id = e.organization_id\nORDER BY e.created_at DESC\nLIMIT 10;"
+        },
+        "config": {
+          "widgetType": "table",
+          "maxRows": 10
+        },
+        "layout": { "x": 6, "y": 14, "w": 6, "h": 4, "minW": 4, "minH": 3 }
+      }
+    ]
+  }
+}
