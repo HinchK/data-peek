@@ -27,6 +27,9 @@ let connectionsStore: DpStorage<{ connections: ConnectionConfig[] }>
 // Active cron jobs for scheduled queries
 const activeJobs = new Map<string, ScheduledTask>()
 
+// Mutex for atomic run storage operations
+let saveRunLock: Promise<void> = Promise.resolve()
+
 /**
  * Initialize the scheduler service and storage
  */
@@ -229,7 +232,7 @@ async function executeScheduledQuery(queryId: string): Promise<void> {
   }
 
   // Store the run
-  saveRun(run)
+  await saveRun(run)
 
   // Update nextRunAt for UI display (cron job continues running automatically)
   const updatedQuery = scheduledQueriesStore
@@ -243,27 +246,37 @@ async function executeScheduledQuery(queryId: string): Promise<void> {
 
 /**
  * Save a run to history, respecting maxHistoryRuns
+ * Uses a mutex to prevent concurrent read-modify-write race conditions
  */
-function saveRun(run: ScheduledQueryRun): void {
-  const runs = scheduledQueryRunsStore.get('runs', [])
+async function saveRun(run: ScheduledQueryRun): Promise<void> {
+  const currentLock = saveRunLock
+  let releaseLock: () => void
 
-  // Get the query to check maxHistoryRuns
-  const queries = scheduledQueriesStore.get('scheduledQueries', [])
-  const query = queries.find((q) => q.id === run.scheduledQueryId)
-  const maxRuns = query?.maxHistoryRuns || 100
+  saveRunLock = new Promise((resolve) => {
+    releaseLock = resolve
+  })
 
-  // Add the new run
-  runs.push(run)
+  try {
+    await currentLock
 
-  // Filter runs for this query and trim to maxHistoryRuns
-  const queryRuns = runs.filter((r) => r.scheduledQueryId === run.scheduledQueryId)
-  const otherRuns = runs.filter((r) => r.scheduledQueryId !== run.scheduledQueryId)
+    const runs = scheduledQueryRunsStore.get('runs', [])
 
-  // Sort by startedAt descending and keep only the latest
-  queryRuns.sort((a, b) => b.startedAt - a.startedAt)
-  const trimmedQueryRuns = queryRuns.slice(0, maxRuns)
+    const queries = scheduledQueriesStore.get('scheduledQueries', [])
+    const query = queries.find((q) => q.id === run.scheduledQueryId)
+    const maxRuns = query?.maxHistoryRuns || 100
 
-  scheduledQueryRunsStore.set('runs', [...otherRuns, ...trimmedQueryRuns])
+    runs.push(run)
+
+    const queryRuns = runs.filter((r) => r.scheduledQueryId === run.scheduledQueryId)
+    const otherRuns = runs.filter((r) => r.scheduledQueryId !== run.scheduledQueryId)
+
+    queryRuns.sort((a, b) => b.startedAt - a.startedAt)
+    const trimmedQueryRuns = queryRuns.slice(0, maxRuns)
+
+    scheduledQueryRunsStore.set('runs', [...otherRuns, ...trimmedQueryRuns])
+  } finally {
+    releaseLock!()
+  }
 }
 
 /**

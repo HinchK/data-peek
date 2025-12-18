@@ -470,15 +470,20 @@ export function scheduleDashboardRefresh(dashboardId: string): void {
   const job = cron.schedule(
     cronExpression,
     async () => {
-      log.debug(`Auto-refreshing dashboard: ${dashboard.name}`)
-      const results = await executeAllWidgets(dashboardId)
+      const currentDashboard = getDashboard(dashboardId)
+      log.debug(`Auto-refreshing dashboard: ${currentDashboard?.name || dashboardId}`)
 
-      const focusedWindow = BrowserWindow.getFocusedWindow()
-      if (focusedWindow) {
-        focusedWindow.webContents.send('dashboard:refresh-complete', {
-          dashboardId,
-          results
-        })
+      try {
+        const results = await executeAllWidgets(dashboardId)
+
+        for (const window of BrowserWindow.getAllWindows()) {
+          window.webContents.send('dashboard:refresh-complete', {
+            dashboardId,
+            results
+          })
+        }
+      } catch (error) {
+        log.error(`Failed to refresh dashboard ${dashboardId}:`, error)
       }
     },
     {
