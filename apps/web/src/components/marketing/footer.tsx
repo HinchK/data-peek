@@ -102,7 +102,9 @@ export function Footer() {
                   <li key={link.label}>
                     <Link
                       href={link.href}
-                      {...(link.external
+                      {...(typeof link === "object" &&
+                      "external" in link &&
+                      link.external
                         ? { target: "_blank", rel: "noopener noreferrer" }
                         : {})}
                       className="text-xs sm:text-sm text-[--color-text-secondary] hover:text-[--color-text-primary] transition-colors"
