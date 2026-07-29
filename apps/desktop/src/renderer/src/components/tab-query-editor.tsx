@@ -940,6 +940,8 @@ export function TabQueryEditor({ tabId }: TabQueryEditorProps) {
           handleRollback={handleRollback}
           handleExplainQuery={handleExplainQuery}
           isExplaining={isExplaining}
+          handleAnalyzePerformance={handleAnalyzePerformance}
+          isPerfAnalyzing={isPerfAnalyzing}
           handleBenchmark={handleBenchmark}
           isRunningBenchmark={isRunningBenchmark}
           handleFormatQuery={handleFormatQuery}

@@ -137,6 +137,7 @@ export function PerfIndicatorPanel({
                 issue={issue}
                 isExpanded={expandedIssueId === issue.id}
                 onToggle={() => setExpandedIssueId(expandedIssueId === issue.id ? null : issue.id)}
+                onApplyFix={onReanalyze}
               />
             ))}
           </div>

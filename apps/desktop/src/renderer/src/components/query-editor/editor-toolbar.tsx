@@ -11,7 +11,8 @@ import {
   PanelTop,
   PanelTopClose,
   CheckCircle2,
-  Undo2
+  Undo2,
+  Activity
 } from 'lucide-react'
 import {
   Button,
@@ -47,6 +48,8 @@ interface EditorToolbarProps {
   handleRollback: () => void
   handleExplainQuery: () => void
   isExplaining: boolean
+  handleAnalyzePerformance?: () => void
+  isPerfAnalyzing?: boolean
   handleBenchmark: (runCount: number) => Promise<void>
   isRunningBenchmark: boolean
   handleFormatQuery: () => void
@@ -80,6 +83,8 @@ export function EditorToolbar({
   handleRollback,
   handleExplainQuery,
   isExplaining,
+  handleAnalyzePerformance,
+  isPerfAnalyzing,
   handleBenchmark,
   isRunningBenchmark,
   handleFormatQuery,
@@ -228,6 +233,32 @@ export function EditorToolbar({
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
+
+        {handleAnalyzePerformance && (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="gap-1.5 h-7 text-indigo-400 hover:text-indigo-300"
+                  disabled={isExecuting || isPerfAnalyzing || !hasQuery}
+                  onClick={handleAnalyzePerformance}
+                >
+                  {isPerfAnalyzing ? (
+                    <Loader2 className="size-3.5 animate-spin" />
+                  ) : (
+                    <Activity className="size-3.5 text-indigo-400" />
+                  )}
+                  Analyze
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                <p className="text-xs">AI Performance & Index Tuning (claude -p)</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
         <BenchmarkButton
           onBenchmark={handleBenchmark}
           isRunning={isRunningBenchmark}
