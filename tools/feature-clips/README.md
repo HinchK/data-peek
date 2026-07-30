@@ -7,10 +7,14 @@ Shipped set: four video clips (`command-palette`, `query-plans`, `er-diagram`,
 `data-masking`) and three CSS/SVG motion graphics for features with nothing to
 film (`ssh-tunnels`, `local-credentials`, `no-telemetry`, under
 `apps/web/src/components/marketing/motion/`). `watch-mode` was captured but is
-**not** shipped — a real product bug (the grid never repaints on a watch tick,
-so the diff highlight decorates stale data) blocks it. See
-`notes/_watch-mode-bugs.md` for the writeup. Do not add it back to the site
-without fixing the underlying bug first.
+**not** shipped — a real product bug blocks it: diff highlights (the amber
+changed-cell background, the green added-row band) never render for a result
+of 50 rows or fewer, because the decoration overlay is gated behind
+`shouldVirtualize` in both grid components. That is nearly every realistic
+query. See `notes/_watch-mode-bugs.md` for the writeup (Bug 2 — a related,
+already-fixed bug, Bug 1, meant the grid didn't even repaint cell *text* on a
+tick; that one is not what blocks shipping). Do not add it back to the site
+without fixing Bug 2 first.
 
 ## Pipeline
 

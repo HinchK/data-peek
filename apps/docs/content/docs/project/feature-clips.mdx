@@ -14,10 +14,12 @@ telemetry) have nothing visual to capture, so they're rendered as small
 CSS/SVG motion graphics instead of video.
 
 One clip, Watch Mode, was captured but is deliberately not shipped: filming
-it surfaced a real product bug where the results grid never repaints on a
-watch tick, so the diff highlight decorates data that's already stale. The
-capture spec is kept in the repository — it fails on purpose, as the
-acceptance test for the bug — but the clip is not wired into the site. See
+it surfaced a real product bug where the diff highlight overlay (the amber
+changed-cell background, the green added-row band) never renders for a
+result of 50 rows or fewer — nearly every realistic query — because it's
+gated behind the grid's virtualization threshold. The capture spec is kept in
+the repository — it fails on purpose, as the acceptance test for the bug —
+but the clip is not wired into the site. See
 [`notes/_watch-mode-bugs.md`](https://github.com/Rohithgilla12/data-peek/blob/main/notes/_watch-mode-bugs.md)
 for the detail.
 
