@@ -62,4 +62,60 @@ describe("FeatureShowcase", () => {
     render(<FeatureShowcase />);
     expect(screen.queryByRole("tab", { name: "AI" })).not.toBeInTheDocument();
   });
+
+  it("wires every tab to the single tabpanel it controls", () => {
+    render(<FeatureShowcase />);
+    const panel = screen.getByRole("tabpanel");
+    const tabs = screen.getAllByRole("tab");
+
+    for (const tab of tabs) {
+      expect(tab).toHaveAttribute("aria-controls", panel.id);
+    }
+    // The panel is labelled by whichever tab is currently active.
+    expect(panel).toHaveAttribute("aria-labelledby", tabs[0].id);
+  });
+
+  it("uses roving tabindex: only the selected tab is in the tab order", () => {
+    render(<FeatureShowcase />);
+    const tabs = screen.getAllByRole("tab");
+
+    expect(tabs[0]).toHaveAttribute("tabindex", "0");
+    for (const tab of tabs.slice(1)) {
+      expect(tab).toHaveAttribute("tabindex", "-1");
+    }
+  });
+
+  it("supports Arrow/Home/End keyboard navigation between tabs", async () => {
+    const user = userEvent.setup();
+    render(<FeatureShowcase />);
+    const tabs = screen.getAllByRole("tab");
+    const last = tabs.length - 1;
+
+    tabs[0].focus();
+    await user.keyboard("{ArrowRight}");
+    expect(tabs[1]).toHaveFocus();
+    expect(tabs[1]).toHaveAttribute("aria-selected", "true");
+    expect(tabs[1]).toHaveAttribute("tabindex", "0");
+    expect(tabs[0]).toHaveAttribute("tabindex", "-1");
+
+    await user.keyboard("{End}");
+    expect(tabs[last]).toHaveFocus();
+    expect(tabs[last]).toHaveAttribute("aria-selected", "true");
+
+    await user.keyboard("{Home}");
+    expect(tabs[0]).toHaveFocus();
+    expect(tabs[0]).toHaveAttribute("aria-selected", "true");
+
+    // ArrowLeft from the first tab wraps around to the last.
+    await user.keyboard("{ArrowLeft}");
+    expect(tabs[last]).toHaveFocus();
+    expect(tabs[last]).toHaveAttribute("aria-selected", "true");
+  });
+
+  it("reflects a category switch in the URL hash, same as an option click", async () => {
+    const user = userEvent.setup();
+    render(<FeatureShowcase />);
+    await user.click(screen.getByRole("tab", { name: "Performance" }));
+    expect(window.location.hash).toBe("#feature-query-plans");
+  });
 });

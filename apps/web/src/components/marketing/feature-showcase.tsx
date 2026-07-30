@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useSyncExternalStore } from "react";
+import { useRef, useState, useSyncExternalStore } from "react";
 import { ClipPlayer } from "./clip-player";
 import {
   CATEGORY_LABELS,
@@ -14,8 +14,14 @@ const CATEGORY_ORDER: ClipCategory[] = ["editor", "performance", "ai", "data", "
 const CATEGORIES = CATEGORY_ORDER.filter((c) => FEATURE_CLIPS.some((f) => f.category === c));
 const DEFAULT_CLIP = FEATURE_CLIPS.find((f) => f.category === CATEGORIES[0]) ?? FEATURE_CLIPS[0];
 
+const PANEL_ID = "feature-showcase-panel";
+
 function firstOf(category: ClipCategory): FeatureClip | undefined {
   return FEATURE_CLIPS.find((f) => f.category === category);
+}
+
+function tabId(category: ClipCategory): string {
+  return `feature-showcase-tab-${category}`;
 }
 
 function subscribeHash(onChange: () => void) {
@@ -44,24 +50,48 @@ function getServerHashId() {
  * reduced-motion check) rather than a mount effect: getServerSnapshot always
  * returns "" so the first client render matches the server-rendered HTML,
  * then a follow-up render picks up the real hash once hydration is done.
+ *
+ * The category switcher is a real WAI-ARIA tabs widget: each tab points at
+ * the single tabpanel it controls via aria-controls, the panel points back
+ * via aria-labelledby, and roving tabindex + Arrow/Home/End keys move focus
+ * the way assistive tech expects from something that announces itself as
+ * role="tab".
  */
 export function FeatureShowcase() {
   const [manualSelection, setManualSelection] = useState<FeatureClip | null>(null);
   const hashId = useSyncExternalStore(subscribeHash, getHashId, getServerHashId);
   const hashClip = hashId ? FEATURE_CLIPS.find((f) => f.id === hashId) : undefined;
+  const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
 
   const selected = manualSelection ?? hashClip ?? DEFAULT_CLIP;
   const category = selected.category;
   const items = FEATURE_CLIPS.filter((f) => f.category === category);
 
-  function selectCategory(c: ClipCategory) {
-    const target = firstOf(c);
-    if (target) setManualSelection(target);
-  }
-
   function select(clip: FeatureClip) {
     setManualSelection(clip);
     window.history.replaceState(null, "", `#feature-${clip.id}`);
+  }
+
+  function selectCategory(c: ClipCategory) {
+    const target = firstOf(c);
+    if (target) select(target);
+  }
+
+  function handleTabKeyDown(event: React.KeyboardEvent<HTMLButtonElement>, index: number) {
+    let nextIndex: number | null = null;
+    if (event.key === "ArrowRight") {
+      nextIndex = (index + 1) % CATEGORIES.length;
+    } else if (event.key === "ArrowLeft") {
+      nextIndex = (index - 1 + CATEGORIES.length) % CATEGORIES.length;
+    } else if (event.key === "Home") {
+      nextIndex = 0;
+    } else if (event.key === "End") {
+      nextIndex = CATEGORIES.length - 1;
+    }
+    if (nextIndex === null) return;
+    event.preventDefault();
+    selectCategory(CATEGORIES[nextIndex]);
+    tabRefs.current[nextIndex]?.focus();
   }
 
   return (
@@ -79,26 +109,42 @@ export function FeatureShowcase() {
         </div>
 
         <div role="tablist" aria-label="Feature categories" className="flex flex-wrap gap-1 mb-6">
-          {CATEGORIES.map((c) => (
-            <button
-              key={c}
-              role="tab"
-              type="button"
-              aria-selected={c === category}
-              onClick={() => selectCategory(c)}
-              className="h-8 px-3 text-[11px] uppercase tracking-[0.12em]"
-              style={{
-                border: "1px solid var(--n-line-soft)",
-                background: c === category ? "var(--n-bg-raised)" : "transparent",
-                color: c === category ? "var(--n-fg)" : "var(--n-fg-muted)",
-              }}
-            >
-              {CATEGORY_LABELS[c]}
-            </button>
-          ))}
+          {CATEGORIES.map((c, index) => {
+            const active = c === category;
+            return (
+              <button
+                key={c}
+                ref={(el) => {
+                  tabRefs.current[index] = el;
+                }}
+                id={tabId(c)}
+                role="tab"
+                type="button"
+                aria-selected={active}
+                aria-controls={PANEL_ID}
+                tabIndex={active ? 0 : -1}
+                onClick={() => selectCategory(c)}
+                onKeyDown={(e) => handleTabKeyDown(e, index)}
+                className="h-8 px-3 text-[11px] uppercase tracking-[0.12em]"
+                style={{
+                  border: "1px solid var(--n-line-soft)",
+                  background: active ? "var(--n-bg-raised)" : "transparent",
+                  color: active ? "var(--n-fg)" : "var(--n-fg-muted)",
+                }}
+              >
+                {CATEGORY_LABELS[c]}
+              </button>
+            );
+          })}
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-6">
+        <div
+          id={PANEL_ID}
+          role="tabpanel"
+          aria-labelledby={tabId(category)}
+          tabIndex={-1}
+          className="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-6"
+        >
           <div role="listbox" aria-label="Features" className="flex flex-col">
             {items.map((f) => {
               const active = f.id === selected.id;

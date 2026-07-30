@@ -1,7 +1,9 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, afterEach, vi } from "vitest";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { CLIP_BASE, FEATURE_CLIPS, mp4Url, posterUrl, webmUrl } from "../feature-clips";
+
+const PRODUCTION_CLIP_BASE = "https://pub-84538e6ab6f94b80b94b8aa308ad1270.r2.dev/clips";
 
 const POSTER_DIR = resolve(__dirname, "..", "..", "..", "..", "public", "clips");
 const ENCODE_MANIFEST = resolve(
@@ -52,14 +54,46 @@ describe("feature clip manifest", () => {
     }
   });
 
-  it("builds well-formed R2 and poster URLs", () => {
+  it("builds well-formed local-dev URLs when NEXT_PUBLIC_CLIP_BASE is unset", () => {
+    // NEXT_PUBLIC_CLIP_BASE is never set in the Vitest pipeline (no .env
+    // loading in vitest.config.ts, no stub in vitest.setup.ts), so the module
+    // reliably falls back to "/clips" here. Assert the exact value rather
+    // than a loose OR, so a regression that stops the fallback from working
+    // actually fails this test.
+    expect(CLIP_BASE).toBe("/clips");
     for (const clip of videoClips) {
       if (clip.media.kind !== "video") continue;
-      expect(mp4Url(clip.media.file)).toBe(`${CLIP_BASE}/${clip.media.file}.mp4`);
-      expect(webmUrl(clip.media.file)).toBe(`${CLIP_BASE}/${clip.media.file}.webm`);
+      expect(mp4Url(clip.media.file)).toBe(`/clips/${clip.media.file}.mp4`);
+      expect(webmUrl(clip.media.file)).toBe(`/clips/${clip.media.file}.webm`);
       expect(posterUrl(clip.media.file)).toBe(`/clips/${clip.media.file}.webp`);
-      expect(CLIP_BASE.startsWith("https://") || CLIP_BASE === "/clips").toBe(true);
     }
+  });
+
+  describe("with NEXT_PUBLIC_CLIP_BASE set to the production R2 URL", () => {
+    afterEach(() => {
+      vi.unstubAllEnvs();
+      vi.resetModules();
+    });
+
+    it("builds well-formed R2 URLs and keeps the poster local", async () => {
+      vi.stubEnv("NEXT_PUBLIC_CLIP_BASE", PRODUCTION_CLIP_BASE);
+      vi.resetModules();
+      // feature-clips.ts reads process.env.NEXT_PUBLIC_CLIP_BASE at module
+      // load time, so the stub above only takes effect on a fresh import.
+      const prod = await import("../feature-clips");
+
+      expect(prod.CLIP_BASE).toBe(PRODUCTION_CLIP_BASE);
+      expect(prod.CLIP_BASE.startsWith("https://")).toBe(true);
+
+      for (const clip of prod.FEATURE_CLIPS.filter((c) => c.media.kind === "video")) {
+        if (clip.media.kind !== "video") continue;
+        expect(prod.mp4Url(clip.media.file)).toBe(`${PRODUCTION_CLIP_BASE}/${clip.media.file}.mp4`);
+        expect(prod.webmUrl(clip.media.file)).toBe(`${PRODUCTION_CLIP_BASE}/${clip.media.file}.webm`);
+        // The poster always resolves under the app's own /public regardless
+        // of where the video itself is served from.
+        expect(prod.posterUrl(clip.media.file)).toBe(`/clips/${clip.media.file}.webp`);
+      }
+    });
   });
 
   it("stays in sync with the encode manifest (video clips only)", () => {
