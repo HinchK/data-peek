@@ -40,6 +40,49 @@ export const FEATURE_CLIPS: FeatureClip[] = [
     category: "editor",
     media: { kind: "video", file: "command-palette", width: 1280, height: 800 },
   },
+  {
+    id: "query-plans",
+    title: "Query plans",
+    blurb: "EXPLAIN ANALYZE rendered as a tree, not a wall of text.",
+    category: "performance",
+    media: { kind: "video", file: "query-plans", width: 1280, height: 800 },
+  },
+  {
+    id: "er-diagram",
+    title: "ER diagrams",
+    blurb: "Interactive schema map. Filter to a table and see its graph of relationships.",
+    category: "data",
+    media: { kind: "video", file: "er-diagram", width: 1280, height: 800 },
+  },
+  {
+    id: "data-masking",
+    title: "Data masking",
+    blurb: "Blur sensitive columns for demos and screenshots. Regex-based auto rules.",
+    category: "data",
+    media: { kind: "video", file: "data-masking", width: 1280, height: 800 },
+  },
+  {
+    id: "ssh-tunnels",
+    title: "SSH tunnels",
+    blurb:
+      "Connect through a bastion with password or key auth. Tunnel lifetime tied to the connection.",
+    category: "infra",
+    media: { kind: "motion", component: "ssh-tunnel" },
+  },
+  {
+    id: "local-credentials",
+    title: "Credentials encrypted locally",
+    blurb: "Stored with the OS keychain. We never see your passwords or API keys.",
+    category: "infra",
+    media: { kind: "motion", component: "local-vault" },
+  },
+  {
+    id: "no-telemetry",
+    title: "No telemetry",
+    blurb: "Zero analytics, zero remote logging. Your queries never leave your machine.",
+    category: "infra",
+    media: { kind: "motion", component: "no-telemetry" },
+  },
 ];
 
 export function clipById(id: string): FeatureClip | undefined {
