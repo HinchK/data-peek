@@ -59,5 +59,3 @@ skills-lock.json
 tools/feature-clips/footage/*
 !tools/feature-clips/footage/.gitkeep
 tools/feature-clips/dist/
-apps/web/public/clips/*.mp4
-apps/web/public/clips/*.webm

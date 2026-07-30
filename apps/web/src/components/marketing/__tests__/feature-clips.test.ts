@@ -1,11 +1,26 @@
 import { describe, it, expect, afterEach, vi } from "vitest";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { CLIP_BASE, FEATURE_CLIPS, mp4Url, posterUrl, webmUrl } from "../feature-clips";
+import {
+  CLIP_BASE,
+  FEATURE_CLIPS,
+  mp4Url,
+  posterUrl,
+  webmUrl,
+} from "../feature-clips";
 
-const PRODUCTION_CLIP_BASE = "https://pub-84538e6ab6f94b80b94b8aa308ad1270.r2.dev/clips";
+const PRODUCTION_CLIP_BASE =
+  "https://pub-84538e6ab6f94b80b94b8aa308ad1270.r2.dev/clips";
 
-const POSTER_DIR = resolve(__dirname, "..", "..", "..", "..", "public", "clips");
+const POSTER_DIR = resolve(
+  __dirname,
+  "..",
+  "..",
+  "..",
+  "..",
+  "public",
+  "clips",
+);
 const ENCODE_MANIFEST = resolve(
   __dirname,
   "..",
@@ -40,17 +55,30 @@ describe("feature clip manifest", () => {
     for (const clip of videoClips) {
       if (clip.media.kind !== "video") continue;
       const poster = resolve(POSTER_DIR, `${clip.media.file}.webp`);
-      expect(existsSync(poster), `missing poster for ${clip.id}: ${poster}`).toBe(true);
+      expect(
+        existsSync(poster),
+        `missing poster for ${clip.id}: ${poster}`,
+      ).toBe(true);
     }
   });
 
-  it("has no orphaned posters", () => {
+  it("has no orphaned posters or video files", () => {
     const referenced = new Set(
-      videoClips.map((c) => (c.media.kind === "video" ? `${c.media.file}.webp` : "")),
+      videoClips.flatMap((c) =>
+        c.media.kind === "video"
+          ? [
+              `${c.media.file}.webp`,
+              `${c.media.file}.mp4`,
+              `${c.media.file}.webm`,
+            ]
+          : [],
+      ),
     );
-    const onDisk = readdirSync(POSTER_DIR).filter((f) => f.endsWith(".webp"));
+    const onDisk = readdirSync(POSTER_DIR).filter(
+      (f) => f.endsWith(".webp") || f.endsWith(".mp4") || f.endsWith(".webm"),
+    );
     for (const file of onDisk) {
-      expect(referenced.has(file), `orphaned poster: ${file}`).toBe(true);
+      expect(referenced.has(file), `orphaned file: ${file}`).toBe(true);
     }
   });
 
@@ -85,13 +113,21 @@ describe("feature clip manifest", () => {
       expect(prod.CLIP_BASE).toBe(PRODUCTION_CLIP_BASE);
       expect(prod.CLIP_BASE.startsWith("https://")).toBe(true);
 
-      for (const clip of prod.FEATURE_CLIPS.filter((c) => c.media.kind === "video")) {
+      for (const clip of prod.FEATURE_CLIPS.filter(
+        (c) => c.media.kind === "video",
+      )) {
         if (clip.media.kind !== "video") continue;
-        expect(prod.mp4Url(clip.media.file)).toBe(`${PRODUCTION_CLIP_BASE}/${clip.media.file}.mp4`);
-        expect(prod.webmUrl(clip.media.file)).toBe(`${PRODUCTION_CLIP_BASE}/${clip.media.file}.webm`);
+        expect(prod.mp4Url(clip.media.file)).toBe(
+          `${PRODUCTION_CLIP_BASE}/${clip.media.file}.mp4`,
+        );
+        expect(prod.webmUrl(clip.media.file)).toBe(
+          `${PRODUCTION_CLIP_BASE}/${clip.media.file}.webm`,
+        );
         // The poster always resolves under the app's own /public regardless
         // of where the video itself is served from.
-        expect(prod.posterUrl(clip.media.file)).toBe(`/clips/${clip.media.file}.webp`);
+        expect(prod.posterUrl(clip.media.file)).toBe(
+          `/clips/${clip.media.file}.webp`,
+        );
       }
     });
   });
