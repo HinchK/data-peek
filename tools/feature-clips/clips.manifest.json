@@ -1,0 +1,17 @@
+{
+  "targetWidth": 1280,
+  "fps": 25,
+  "gifWidth": 800,
+  "gifFps": 15,
+  "maxBytes": 358400,
+  "clips": [
+    {
+      "id": "command-palette",
+      "in": 7.4,
+      "out": 18.6,
+      "posterAt": 11.0,
+      "gif": true,
+      "speedRamp": null
+    }
+  ]
+}
