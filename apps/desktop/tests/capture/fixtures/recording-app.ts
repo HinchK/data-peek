@@ -20,8 +20,14 @@ export const FOOTAGE_DIR = resolve(
   'footage'
 )
 
-/** Every clip is captured at this size so encoded outputs share dimensions. */
-export const CLIP_SIZE = { width: 1440, height: 900 }
+/**
+ * Every clip is captured at this size so encoded outputs share dimensions.
+ * 1728x1080 rather than the desktop app's narrower default: the editor layout's
+ * minimum width overlaps the sidebar below ~1720px (see
+ * tests/e2e/watch-mode.spec.ts). 1728 is exactly a 1.6 ratio so the later
+ * ffmpeg `scale=1280:-2` lands on 1280x800 with no odd-dimension rounding.
+ */
+export const CLIP_SIZE = { width: 1728, height: 1080 }
 
 interface CaptureFixtures {
   /** Temp directory used as `--user-data-dir`; cleaned up after the test. */
@@ -108,7 +114,48 @@ export const test = base.extend<CaptureFixtures, CaptureWorkerFixtures>({
     const page = await recordedApp.firstWindow()
     // Force dark before first paint. The app already defaults to dark, but pinning
     // it here means a future default change can't silently invalidate every clip.
-    await page.addInitScript(() => localStorage.setItem('data-peek-theme', 'dark'))
+    // Also disable auto-masking by default: masking-store.ts defaults
+    // autoMaskEnabled to true with an 'email' rule enabled, which blurs the email
+    // column in every clip and reads as a rendering bug to anyone who doesn't
+    // know the feature exists. This is a harness default, not an override — a
+    // later spec (e.g. one filming data masking itself) can add its own
+    // addInitScript after this one to set autoMaskEnabled back to true.
+    await page.addInitScript(() => {
+      localStorage.setItem('data-peek-theme', 'dark')
+      localStorage.setItem(
+        'masking-store',
+        JSON.stringify({ state: { autoMaskEnabled: false }, version: 0 })
+      )
+    })
+
+    // Even at CLIP_SIZE, some result shapes (e.g. a UUID primary key column)
+    // push the app's root layout a few dozen px past the viewport. Focusing
+    // Monaco then triggers the browser's default scroll-into-view, which
+    // shoves the whole page left-to-right mid-clip — a horizontal scroll in
+    // released footage reads as a bug. Pin the document non-scrollable
+    // instead of chasing every content shape that could overflow 1728px; any
+    // overflow is simply clipped off the right edge, which is far less
+    // damaging than the left edge (SQL text, emails) shifting out of frame.
+    await page.addInitScript(() => {
+      const unscroll = (): void => {
+        if (document.documentElement.scrollLeft) document.documentElement.scrollLeft = 0
+        if (document.body.scrollLeft) document.body.scrollLeft = 0
+      }
+      const pin = (): void => {
+        document.documentElement.style.overflowX = 'hidden'
+        document.body.style.overflowX = 'hidden'
+        // overflow: hidden only hides the scrollbar — the browser's focus
+        // scroll-into-view still sets scrollLeft and the content still
+        // shifts. Snap it back on the same tick so the offset never paints.
+        document.addEventListener('scroll', unscroll, { capture: true, passive: true })
+        window.addEventListener('scroll', unscroll, { passive: true })
+      }
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', pin, { once: true })
+      } else {
+        pin()
+      }
+    })
 
     await recordedApp.evaluate(({ BrowserWindow }, size) => {
       const win = BrowserWindow.getAllWindows()[0]
