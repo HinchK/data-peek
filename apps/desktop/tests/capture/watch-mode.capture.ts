@@ -1,6 +1,29 @@
 import { Client } from 'pg'
 import { test, expect } from './fixtures/recording-app'
 
+/**
+ * This spec is EXPECTED TO FAIL until Watch Mode Bug 2 is fixed (see
+ * notes/_watch-mode-bugs.md). It's kept in the repo anyway, deliberately
+ * failing, as the real acceptance test for that bug.
+ *
+ * Bug 2: the diff decoration overlay (amber changed-cell background, green
+ * added-row band) is gated behind `shouldVirtualize` in both
+ * editable-data-table.tsx and data-table.tsx, which only turns on above 50
+ * rows. The query this capture runs returns 3 rows, so the overlay never
+ * mounts and the decoration assertion below currently has nothing to find.
+ * Fixing Bug 2 (out of scope for whatever branch you're reading this on
+ * unless you're specifically working that bug) should make this spec pass
+ * without any other change here.
+ *
+ * The `(Live)` text assertion further down is a *different*, already-fixed
+ * bug (Bug 1 — the grid not repainting cell values on a tick at all) and
+ * passes today; it is not sufficient evidence that Bug 2 is fixed, which is
+ * why the decoration assertion exists as a separate check.
+ *
+ * Captures never run in CI (see tools/feature-clips/README.md), so a
+ * deliberately-failing capture spec doesn't block anything.
+ */
+
 interface PgConnectionDetails {
   host: string
   port: number
@@ -69,6 +92,15 @@ test('watch-mode', async ({ window, cursor, pg }) => {
   // The whole pitch of this clip is a live cell-level diff — a capture that
   // never reaches that state must fail, not emit footage of a static table.
   await expect(window.getByText(/\(Live\)/).first()).toBeVisible({ timeout: 15000 })
+
+  // The actual decoration, not just the changed text: WatchDecorationOverlay
+  // paints a changed cell with `background: var(--cell-diff-fill, ...)` as an
+  // inline style (cell-grid/watch-decoration-overlay.tsx). This is Bug 2's
+  // acceptance check — see the file header. It is expected to fail with a
+  // 3-row result until Bug 2 is fixed.
+  await expect(window.locator('[style*="--cell-diff-fill"]').first()).toBeVisible({
+    timeout: 8000
+  })
   await window.waitForTimeout(6000)
 
   // The toolbar toggle opens the "Watching" popover rather than stopping the

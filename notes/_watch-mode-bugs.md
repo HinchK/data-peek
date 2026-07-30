@@ -107,9 +107,13 @@ this bug survived. Pick one.
 
 ## State of the clip
 
-`apps/desktop/tests/capture/watch-mode.capture.ts` is committed and **passes** —
-it asserts the `(Live)` value becomes visible, which Bug 1's fix made true. It is
-kept deliberately as the acceptance test for Bug 2.
+`apps/desktop/tests/capture/watch-mode.capture.ts` is committed and **fails on
+purpose**. It asserts two things: that the `(Live)` value becomes visible
+(Bug 1's fix made this true and it passes), and that the amber changed-cell
+decoration (`[style*="--cell-diff-fill"]`) becomes visible. The decoration
+assertion is Bug 2's acceptance check, and fails today because the query
+returns 3 rows and the overlay is gated behind `shouldVirtualize` — it should
+start passing once Bug 2 is fixed, with no other change to the spec needed.
 
 The clip is **not shipped**: `watch-mode` is absent from
 `apps/web/src/components/marketing/feature-clips.ts` and from
