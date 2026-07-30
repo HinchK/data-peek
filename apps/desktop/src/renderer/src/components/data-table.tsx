@@ -512,7 +512,10 @@ export function DataTable<TData extends Record<string, unknown>>({
     [pageSize]
   )
 
-  const tableGlobalFilterFn = React.useCallback((row: any) => globalFilterFn(row), [globalFilterFn])
+  const tableGlobalFilterFn = React.useCallback(
+    (row: { original: unknown }) => globalFilterFn(row),
+    [globalFilterFn]
+  )
 
   const table = useReactTable({
     data: sortedData,
