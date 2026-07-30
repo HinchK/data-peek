@@ -674,3 +674,15 @@ a[role="button"]:active {
   background-image: radial-gradient(circle, var(--n-line) 1px, transparent 1px);
   background-size: 8px 8px;
 }
+
+@media (prefers-reduced-motion: reduce) {
+  .dp-motion,
+  .dp-motion * {
+    animation-play-state: paused !important;
+  }
+  .dp-motion animate,
+  .dp-motion animateMotion,
+  .dp-motion animateTransform {
+    display: none;
+  }
+}
