@@ -5,6 +5,8 @@
   "type": "module",
   "scripts": {
     "encode": "node encode.mjs",
-    "verify": "node verify.mjs"
+    "verify": "node verify.mjs",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   }
 }
