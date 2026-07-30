@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { mkdirSync, existsSync, rmSync } from 'node:fs'
+import { mkdirSync, existsSync, rmSync, copyFileSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -8,7 +8,11 @@ import { run } from './lib/ffmpeg.mjs'
 const HERE = dirname(fileURLToPath(import.meta.url))
 const FOOTAGE = join(HERE, 'footage')
 const DIST = join(HERE, 'dist')
-const POSTERS = resolve(HERE, '..', '..', 'apps', 'web', 'public', 'clips')
+// Local dev's CLIP_BASE ("/clips") serves straight out of this directory, so
+// the mp4/webm land here too, not just the poster. Production instead points
+// CLIP_BASE at R2 (see feature-clips.ts) — these two binaries are gitignored
+// and only the .webp poster is committed.
+const PUBLIC_CLIPS = resolve(HERE, '..', '..', 'apps', 'web', 'public', 'clips')
 
 const cfg = JSON.parse(await readFile(join(HERE, 'clips.manifest.json'), 'utf-8'))
 const only = process.argv[2]
@@ -18,7 +22,7 @@ if (only && clips.length === 0) {
 }
 
 mkdirSync(DIST, { recursive: true })
-mkdirSync(POSTERS, { recursive: true })
+mkdirSync(PUBLIC_CLIPS, { recursive: true })
 
 /**
  * Piecewise-linear setpts for a speed ramp: play normally up to `a`, compress
@@ -97,6 +101,7 @@ for (const clip of clips) {
     '-an',
     join(DIST, `${clip.id}.mp4`)
   ])
+  copyFileSync(join(DIST, `${clip.id}.mp4`), join(PUBLIC_CLIPS, `${clip.id}.mp4`))
   console.log('  mp4')
 
   await run('ffmpeg', [
@@ -115,6 +120,7 @@ for (const clip of clips) {
     '-an',
     join(DIST, `${clip.id}.webm`)
   ])
+  copyFileSync(join(DIST, `${clip.id}.webm`), join(PUBLIC_CLIPS, `${clip.id}.webm`))
   console.log('  webm')
 
   // Homebrew's ffmpeg ships without libwebp, so the poster goes via PNG and
@@ -133,7 +139,7 @@ for (const clip of clips) {
       `scale=${cfg.targetWidth}:-2:flags=lanczos`,
       posterPng
     ])
-    await run('cwebp', ['-quiet', '-q', '82', posterPng, '-o', join(POSTERS, `${clip.id}.webp`)])
+    await run('cwebp', ['-quiet', '-q', '82', posterPng, '-o', join(PUBLIC_CLIPS, `${clip.id}.webp`)])
   } finally {
     rmSync(posterPng, { force: true })
   }

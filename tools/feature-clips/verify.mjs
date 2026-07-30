@@ -7,7 +7,7 @@ import { probe } from './lib/ffmpeg.mjs'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const DIST = join(HERE, 'dist')
-const POSTERS = resolve(HERE, '..', '..', 'apps', 'web', 'public', 'clips')
+const PUBLIC_CLIPS = resolve(HERE, '..', '..', 'apps', 'web', 'public', 'clips')
 
 const cfg = JSON.parse(await readFile(join(HERE, 'clips.manifest.json'), 'utf-8'))
 const failures = []
@@ -64,9 +64,22 @@ for (const clip of cfg.clips) {
       Math.abs(actual - expected) < 0.5,
       `${clip.id}.${ext}: duration ${actual.toFixed(2)}s != ${expected.toFixed(2)}s`
     )
+
+    // Local dev's CLIP_BASE ("/clips") serves out of apps/web/public/clips,
+    // not tools/feature-clips/dist, so this copy is what actually proves the
+    // clip plays locally rather than just that it encoded.
+    const publicFile = join(PUBLIC_CLIPS, `${clip.id}.${ext}`)
+    if (!existsSync(publicFile)) {
+      failures.push(`${clip.id}: missing public copy at ${publicFile}`)
+    } else {
+      check(
+        statSync(publicFile).size === bytes,
+        `${clip.id}.${ext}: public copy size ${statSync(publicFile).size} != dist copy ${bytes}`
+      )
+    }
   }
 
-  const poster = join(POSTERS, `${clip.id}.webp`)
+  const poster = join(PUBLIC_CLIPS, `${clip.id}.webp`)
   if (!existsSync(poster)) {
     failures.push(`${clip.id}: missing poster at ${poster}`)
   } else {

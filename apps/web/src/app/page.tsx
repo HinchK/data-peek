@@ -1,6 +1,8 @@
 import { Metadata } from "next";
 import { Header } from "@/components/marketing/header";
 import { Hero } from "@/components/marketing/hero";
+import { ClipPlayer } from "@/components/marketing/clip-player";
+import { clipById } from "@/components/marketing/feature-clips";
 import { Features } from "@/components/marketing/features";
 import { Pricing } from "@/components/marketing/pricing";
 import { Faq } from "@/components/marketing/faq";
@@ -37,6 +39,12 @@ export default function Home() {
       <Header />
       <main>
         <Hero />
+        {/* Task 4 review-gate scaffolding: proves the capture -> encode ->
+            embed pipeline with one real clip before the rest are captured.
+            Task 9 replaces this with the full tabbed showcase. */}
+        <section className="mx-auto max-w-[1240px] px-5 sm:px-8 py-12">
+          <ClipPlayer clip={clipById("command-palette")!} active />
+        </section>
         <Features />
         <Pricing />
         <Faq />
