@@ -21,17 +21,45 @@ mkdirSync(DIST, { recursive: true })
 mkdirSync(POSTERS, { recursive: true })
 
 /**
- * Build the -vf chain. `speedRamp` compresses a dead segment (e.g. waiting on a
- * local LLM) via setpts; everything else is a straight scale + fps normalise.
+ * Piecewise-linear setpts for a speed ramp: play normally up to `a`, compress
+ * the `a`-`b` window by `factor`, then resume normal speed to the end of the
+ * clip, on one continuous monotonic timeline.
+ *
+ * `T` (ffmpeg's per-frame timestamp) is in seconds; `PTS` is in timebase
+ * units, so a result computed in the seconds domain has to be divided by
+ * `TB` before it can replace PTS. The whole expression is wrapped in single
+ * quotes, which is ffmpeg's filtergraph escaping for the commas inside it.
+ */
+function speedRampExpr(a, b, factor) {
+  const ramp = `(${a}+(T-${a})/${factor})/TB`
+  const rest = `(${a}+(${b}-${a})/${factor}+(T-${b}))/TB`
+  return `setpts='if(lt(T,${a}),PTS,if(lt(T,${b}),${ramp},${rest}))'`
+}
+
+/**
+ * Build the -vf chain: trim -> rebase the timeline to 0 -> optional speed ramp
+ * -> scale + fps normalise.
+ *
+ * The trim happens inside the filtergraph (`trim` + `setpts=PTS-STARTPTS`)
+ * rather than via CLI `-ss`/`-t`, and that is load-bearing, not stylistic:
+ * `-ss`/`-t` placed after `-i` only cut at the muxer, downstream of every
+ * filter including setpts, so a speed ramp's `T` would still be measured
+ * against the *whole source's* absolute timestamps rather than the trimmed
+ * clip's. Doing the trim as the first two filter steps guarantees `T` is
+ * 0-based at `clip.in` for everything after it, which is what `from`/`to`
+ * below are rebased against. Confirmed empirically: this is also what keeps
+ * the frame-accurate behaviour the old `-ss` placement was chasing (decoding
+ * from the start rather than snapping to a VP8 keyframe), since nothing here
+ * does an early/coarse seek either.
  */
 function videoFilter(clip) {
-  const chain = []
+  const chain = [`trim=start=${clip.in}:end=${clip.out}`, 'setpts=PTS-STARTPTS']
   if (clip.speedRamp) {
     const { from, to, factor } = clip.speedRamp
-    // Relative to the trimmed clip, not the source.
+    // Relative to the trimmed clip (now 0-based at clip.in), not the source.
     const a = (from - clip.in).toFixed(3)
     const b = (to - clip.in).toFixed(3)
-    chain.push(`setpts='if(between(T,${a},${b}),PTS/${factor},PTS)'`)
+    chain.push(speedRampExpr(a, b, factor))
   }
   chain.push(`scale=${cfg.targetWidth}:-2:flags=lanczos`)
   chain.push(`fps=${cfg.fps}`)
@@ -46,24 +74,45 @@ for (const clip of clips) {
   const duration = (clip.out - clip.in).toFixed(3)
   console.log(`▶ ${clip.id} (${duration}s)`)
 
-  // Output-side seeking (-ss/-t after -i) is frame-accurate; input-side seeking on
-  // VP8 snaps to keyframes and can drift the trim by up to a second.
-  const trim = ['-i', src, '-ss', String(clip.in), '-t', duration]
+  const trim = ['-i', src]
   const vf = videoFilter(clip)
 
   await run('ffmpeg', [
-    '-y', ...trim,
-    '-vf', vf,
-    '-c:v', 'libx264', '-profile:v', 'high', '-preset', 'slow', '-crf', '23',
-    '-pix_fmt', 'yuv420p', '-movflags', '+faststart', '-an',
+    '-y',
+    ...trim,
+    '-vf',
+    vf,
+    '-c:v',
+    'libx264',
+    '-profile:v',
+    'high',
+    '-preset',
+    'slow',
+    '-crf',
+    '23',
+    '-pix_fmt',
+    'yuv420p',
+    '-movflags',
+    '+faststart',
+    '-an',
     join(DIST, `${clip.id}.mp4`)
   ])
   console.log('  mp4')
 
   await run('ffmpeg', [
-    '-y', ...trim,
-    '-vf', vf,
-    '-c:v', 'libvpx-vp9', '-crf', '32', '-b:v', '0', '-row-mt', '1', '-an',
+    '-y',
+    ...trim,
+    '-vf',
+    vf,
+    '-c:v',
+    'libvpx-vp9',
+    '-crf',
+    '32',
+    '-b:v',
+    '0',
+    '-row-mt',
+    '1',
+    '-an',
     join(DIST, `${clip.id}.webm`)
   ])
   console.log('  webm')
@@ -71,15 +120,23 @@ for (const clip of clips) {
   // Homebrew's ffmpeg ships without libwebp, so the poster goes via PNG and
   // cwebp (part of the same `webp` formula that provides the decoder).
   const posterPng = join(DIST, `.poster-${clip.id}.png`)
-  await run('ffmpeg', [
-    '-y', '-i', src, '-ss', String(clip.posterAt), '-frames:v', '1',
-    '-vf', `scale=${cfg.targetWidth}:-2:flags=lanczos`,
-    posterPng
-  ])
-  await run('cwebp', [
-    '-quiet', '-q', '82', posterPng, '-o', join(POSTERS, `${clip.id}.webp`)
-  ])
-  rmSync(posterPng, { force: true })
+  try {
+    await run('ffmpeg', [
+      '-y',
+      '-i',
+      src,
+      '-ss',
+      String(clip.posterAt),
+      '-frames:v',
+      '1',
+      '-vf',
+      `scale=${cfg.targetWidth}:-2:flags=lanczos`,
+      posterPng
+    ])
+    await run('cwebp', ['-quiet', '-q', '82', posterPng, '-o', join(POSTERS, `${clip.id}.webp`)])
+  } finally {
+    rmSync(posterPng, { force: true })
+  }
   console.log('  poster')
 
   // GIFs are for the README and social only — never served to the site, where the
@@ -94,12 +151,19 @@ for (const clip of clips) {
     const gifScale = `fps=${cfg.gifFps},scale=${cfg.gifWidth}:-2:flags=lanczos`
     try {
       await run('ffmpeg', [
-        '-y', '-i', gifSrc,
-        '-vf', `${gifScale},palettegen=stats_mode=diff`,
+        '-y',
+        '-i',
+        gifSrc,
+        '-vf',
+        `${gifScale},palettegen=stats_mode=diff`,
         palette
       ])
       await run('ffmpeg', [
-        '-y', '-i', gifSrc, '-i', palette,
+        '-y',
+        '-i',
+        gifSrc,
+        '-i',
+        palette,
         '-filter_complex',
         `[0:v]${gifScale}[x];[x][1:v]paletteuse=dither=sierra2_4a:diff_mode=rectangle`,
         join(DIST, `${clip.id}.gif`)
