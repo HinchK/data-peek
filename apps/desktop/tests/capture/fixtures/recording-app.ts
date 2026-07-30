@@ -24,6 +24,8 @@ export const FOOTAGE_DIR = resolve(
 export const CLIP_SIZE = { width: 1440, height: 900 }
 
 interface CaptureFixtures {
+  /** Temp directory used as `--user-data-dir`; cleaned up after the test. */
+  userDataDir: string
   recordedApp: ElectronApplication
   window: Page
   cursor: Cursor
@@ -52,7 +54,21 @@ export const test = base.extend<CaptureFixtures, CaptureWorkerFixtures>({
     { scope: 'worker' }
   ],
 
-  recordedApp: async ({}, use, testInfo) => {
+  // Own fixture (mirroring tests/e2e/fixtures/electron-app.ts) so its teardown
+  // runs independently of `recordedApp` — if `recordedApp` throws during setup,
+  // before reaching `use()`, Playwright still unwinds this fixture and removes
+  // the temp dir.
+  userDataDir: async ({}, use) => {
+    const dir = mkdtempSync(join(tmpdir(), 'data-peek-capture-'))
+    await use(dir)
+    try {
+      rmSync(dir, { recursive: true, force: true })
+    } catch {
+      // Best-effort; the OS reaps temp dirs.
+    }
+  },
+
+  recordedApp: async ({ userDataDir }, use, testInfo) => {
     if (!existsSync(MAIN_ENTRY)) {
       throw new Error(
         `Electron main bundle not found at ${MAIN_ENTRY}. Run \`pnpm build\` first ` +
@@ -60,7 +76,6 @@ export const test = base.extend<CaptureFixtures, CaptureWorkerFixtures>({
       )
     }
     mkdirSync(FOOTAGE_DIR, { recursive: true })
-    const userDataDir = mkdtempSync(join(tmpdir(), 'data-peek-capture-'))
 
     const app = await _electron.launch({
       args: [MAIN_ENTRY, `--user-data-dir=${userDataDir}`],
@@ -71,6 +86,9 @@ export const test = base.extend<CaptureFixtures, CaptureWorkerFixtures>({
     const page = await app.firstWindow()
     const video = page.video()
     if (!video) {
+      // This throw happens before `use()`, so no teardown below runs for `app` —
+      // close it ourselves or a missing screencast handle leaks the Electron process.
+      await app.close()
       throw new Error(
         'recordVideo produced no Video handle — Playwright did not attach a screencast ' +
           'to the Electron window. See the fallback documented in the design spec.'
@@ -79,14 +97,11 @@ export const test = base.extend<CaptureFixtures, CaptureWorkerFixtures>({
 
     await use(app)
 
-    // Close first so the screencast is flushed, then name it after the test.
+    // Close first so the screencast is flushed, then name it after the test and
+    // delete the raw intermediate so `.raw/` doesn't accumulate across specs.
     await app.close()
     await video.saveAs(join(FOOTAGE_DIR, `${testInfo.title}.webm`))
-    try {
-      rmSync(userDataDir, { recursive: true, force: true })
-    } catch {
-      // Best-effort; the OS reaps temp dirs.
-    }
+    await video.delete()
   },
 
   window: async ({ recordedApp, pg }, use) => {
