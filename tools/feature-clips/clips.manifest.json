@@ -12,6 +12,30 @@
       "posterAt": 11.0,
       "gif": true,
       "speedRamp": null
+    },
+    {
+      "id": "query-plans",
+      "in": 22.5,
+      "out": 30.5,
+      "posterAt": 28.0,
+      "gif": false,
+      "speedRamp": null
+    },
+    {
+      "id": "er-diagram",
+      "in": 13.4,
+      "out": 23.4,
+      "posterAt": 20.0,
+      "gif": false,
+      "speedRamp": null
+    },
+    {
+      "id": "data-masking",
+      "in": 13.0,
+      "out": 22.2,
+      "posterAt": 20.0,
+      "gif": false,
+      "speedRamp": null
     }
   ]
 }
