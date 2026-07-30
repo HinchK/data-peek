@@ -1,4 +1,9 @@
+"use client";
+
+import { useSvgReducedMotionPause } from "./use-svg-reduced-motion";
+
 export function LocalVault() {
+  const svgRef = useSvgReducedMotionPause<SVGSVGElement>();
   return (
     <figure
       data-testid="motion-local-vault"
@@ -9,8 +14,17 @@ export function LocalVault() {
         background: "var(--n-bg-sunken)",
       }}
     >
-      <svg viewBox="0 0 640 260" className="w-full h-auto block" role="img">
-        <g fontFamily="ui-monospace, monospace" fontSize="11" fill="var(--n-fg-muted)">
+      <svg
+        ref={svgRef}
+        viewBox="0 0 640 260"
+        className="w-full h-auto block"
+        role="img"
+      >
+        <g
+          fontFamily="ui-monospace, monospace"
+          fontSize="11"
+          fill="var(--n-fg-muted)"
+        >
           <rect
             x="60"
             y="60"
@@ -24,12 +38,26 @@ export function LocalVault() {
             your machine — nothing crosses this boundary
           </text>
 
-          <rect x="110" y="112" width="130" height="46" fill="none" stroke="var(--n-line)" />
+          <rect
+            x="110"
+            y="112"
+            width="130"
+            height="46"
+            fill="none"
+            stroke="var(--n-line)"
+          />
           <text x="175" y="140" textAnchor="middle">
             password
           </text>
 
-          <rect x="400" y="102" width="140" height="66" fill="none" stroke="var(--n-line)" />
+          <rect
+            x="400"
+            y="102"
+            width="140"
+            height="66"
+            fill="none"
+            stroke="var(--n-line)"
+          />
           <text x="470" y="130" textAnchor="middle">
             OS keychain
           </text>
@@ -38,9 +66,23 @@ export function LocalVault() {
           </text>
         </g>
 
-        <g className="dp-motion dp-key">
-          <rect x="250" y="126" width="26" height="8" rx="2" fill="var(--n-accent)" />
-          <circle cx="248" cy="130" r="7" fill="none" stroke="var(--n-accent)" strokeWidth="3" />
+        <g className="dp-key">
+          <rect
+            x="250"
+            y="126"
+            width="26"
+            height="8"
+            rx="2"
+            fill="var(--n-accent)"
+          />
+          <circle
+            cx="248"
+            cy="130"
+            r="7"
+            fill="none"
+            stroke="var(--n-accent)"
+            strokeWidth="3"
+          />
           <animateTransform
             attributeName="transform"
             type="translate"

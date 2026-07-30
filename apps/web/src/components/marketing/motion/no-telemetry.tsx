@@ -1,4 +1,9 @@
+"use client";
+
+import { useSvgReducedMotionPause } from "./use-svg-reduced-motion";
+
 export function NoTelemetry() {
+  const svgRef = useSvgReducedMotionPause<SVGSVGElement>();
   return (
     <figure
       data-testid="motion-no-telemetry"
@@ -9,9 +14,25 @@ export function NoTelemetry() {
         background: "var(--n-bg-sunken)",
       }}
     >
-      <svg viewBox="0 0 640 260" className="w-full h-auto block" role="img">
-        <g fontFamily="ui-monospace, monospace" fontSize="11" fill="var(--n-fg-muted)">
-          <rect x="40" y="70" width="150" height="120" fill="none" stroke="var(--n-line)" />
+      <svg
+        ref={svgRef}
+        viewBox="0 0 640 260"
+        className="w-full h-auto block"
+        role="img"
+      >
+        <g
+          fontFamily="ui-monospace, monospace"
+          fontSize="11"
+          fill="var(--n-fg-muted)"
+        >
+          <rect
+            x="40"
+            y="70"
+            width="150"
+            height="120"
+            fill="none"
+            stroke="var(--n-line)"
+          />
           <text x="115" y="124" textAnchor="middle">
             data-peek
           </text>
@@ -19,14 +40,32 @@ export function NoTelemetry() {
             your queries
           </text>
 
-          <line x1="330" y1="50" x2="330" y2="210" stroke="var(--n-line)" strokeDasharray="4 4" />
-          <text x="330" y="38" textAnchor="middle" fontSize="9.5" fill="var(--n-fg-faint)">
+          <line
+            x1="330"
+            y1="50"
+            x2="330"
+            y2="210"
+            stroke="var(--n-line)"
+            strokeDasharray="4 4"
+          />
+          <text
+            x="330"
+            y="38"
+            textAnchor="middle"
+            fontSize="9.5"
+            fill="var(--n-fg-faint)"
+          >
             the internet
           </text>
 
           {["analytics", "crash logs", "usage stats"].map((label, i) => (
             <g key={label}>
-              <text x="200" y={96 + i * 40} fontSize="9.5" fill="var(--n-fg-faint)">
+              <text
+                x="200"
+                y={96 + i * 40}
+                fontSize="9.5"
+                fill="var(--n-fg-faint)"
+              >
                 {label}
               </text>
               <line
@@ -41,7 +80,7 @@ export function NoTelemetry() {
         </g>
 
         {[0, 1, 2].map((i) => (
-          <g key={i} className="dp-motion">
+          <g key={i}>
             <circle r="4" cy={100 + i * 40} fill="oklch(0.70 0.16 30)">
               <animate
                 attributeName="cx"

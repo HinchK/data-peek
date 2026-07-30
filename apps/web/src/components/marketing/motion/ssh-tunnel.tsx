@@ -1,4 +1,9 @@
+"use client";
+
+import { useSvgReducedMotionPause } from "./use-svg-reduced-motion";
+
 export function SshTunnel() {
+  const svgRef = useSvgReducedMotionPause<SVGSVGElement>();
   return (
     <figure
       data-testid="motion-ssh-tunnel"
@@ -9,20 +14,50 @@ export function SshTunnel() {
         background: "var(--n-bg-sunken)",
       }}
     >
-      <svg viewBox="0 0 640 260" className="w-full h-auto block" role="img">
+      <svg
+        ref={svgRef}
+        viewBox="0 0 640 260"
+        className="w-full h-auto block"
+        role="img"
+      >
         <defs>
-          <marker id="dp-arrow" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
+          <marker
+            id="dp-arrow"
+            markerWidth="8"
+            markerHeight="8"
+            refX="6"
+            refY="4"
+            orient="auto"
+          >
             <path d="M0 0 L8 4 L0 8 z" fill="var(--n-fg-faint)" />
           </marker>
         </defs>
 
-        <g fontFamily="ui-monospace, monospace" fontSize="11" fill="var(--n-fg-muted)">
-          <rect x="24" y="100" width="120" height="60" fill="none" stroke="var(--n-line)" />
+        <g
+          fontFamily="ui-monospace, monospace"
+          fontSize="11"
+          fill="var(--n-fg-muted)"
+        >
+          <rect
+            x="24"
+            y="100"
+            width="120"
+            height="60"
+            fill="none"
+            stroke="var(--n-line)"
+          />
           <text x="84" y="134" textAnchor="middle">
             your machine
           </text>
 
-          <rect x="260" y="100" width="120" height="60" fill="none" stroke="var(--n-line)" />
+          <rect
+            x="260"
+            y="100"
+            width="120"
+            height="60"
+            fill="none"
+            stroke="var(--n-line)"
+          />
           <text x="320" y="128" textAnchor="middle">
             bastion
           </text>
@@ -30,12 +65,25 @@ export function SshTunnel() {
             ssh
           </text>
 
-          <rect x="496" y="100" width="120" height="60" fill="none" stroke="var(--n-line)" />
+          <rect
+            x="496"
+            y="100"
+            width="120"
+            height="60"
+            fill="none"
+            stroke="var(--n-line)"
+          />
           <text x="556" y="134" textAnchor="middle">
             database
           </text>
 
-          <text x="556" y="86" textAnchor="middle" fontSize="9.5" fill="var(--n-fg-faint)">
+          <text
+            x="556"
+            y="86"
+            textAnchor="middle"
+            fontSize="9.5"
+            fill="var(--n-fg-faint)"
+          >
             private subnet
           </text>
           <rect
@@ -48,11 +96,25 @@ export function SshTunnel() {
             strokeDasharray="3 3"
           />
 
-          <line x1="144" y1="130" x2="252" y2="130" stroke="var(--n-line)" markerEnd="url(#dp-arrow)" />
-          <line x1="380" y1="130" x2="488" y2="130" stroke="var(--n-line)" markerEnd="url(#dp-arrow)" />
+          <line
+            x1="144"
+            y1="130"
+            x2="252"
+            y2="130"
+            stroke="var(--n-line)"
+            markerEnd="url(#dp-arrow)"
+          />
+          <line
+            x1="380"
+            y1="130"
+            x2="488"
+            y2="130"
+            stroke="var(--n-line)"
+            markerEnd="url(#dp-arrow)"
+          />
         </g>
 
-        <circle className="dp-motion dp-packet" r="4.5" fill="var(--n-accent)">
+        <circle className="dp-packet" r="4.5" fill="var(--n-accent)">
           <animateMotion
             dur="3.2s"
             repeatCount="indefinite"

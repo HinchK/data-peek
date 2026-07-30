@@ -58,3 +58,19 @@ if (typeof HTMLMediaElement !== "undefined") {
     value: vi.fn(),
   });
 }
+
+// jsdom has no SMIL/animation engine, so SVGSVGElement.pauseAnimations and
+// .unpauseAnimations don't exist at all (unlike a real browser, where both
+// are always present). The motion graphics under
+// components/marketing/motion/ call them directly to stop SMIL under
+// prefers-reduced-motion, since CSS cannot touch SMIL timelines.
+if (typeof SVGSVGElement !== "undefined") {
+  Object.defineProperty(SVGSVGElement.prototype, "pauseAnimations", {
+    configurable: true,
+    value: vi.fn(),
+  });
+  Object.defineProperty(SVGSVGElement.prototype, "unpauseAnimations", {
+    configurable: true,
+    value: vi.fn(),
+  });
+}
