@@ -139,7 +139,14 @@ for (const clip of clips) {
       `scale=${cfg.targetWidth}:-2:flags=lanczos`,
       posterPng
     ])
-    await run('cwebp', ['-quiet', '-q', '82', posterPng, '-o', join(PUBLIC_CLIPS, `${clip.id}.webp`)])
+    await run('cwebp', [
+      '-quiet',
+      '-q',
+      '82',
+      posterPng,
+      '-o',
+      join(PUBLIC_CLIPS, `${clip.id}.webp`)
+    ])
   } finally {
     rmSync(posterPng, { force: true })
   }

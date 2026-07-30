@@ -6,6 +6,7 @@
   "scripts": {
     "encode": "node encode.mjs",
     "verify": "node verify.mjs",
+    "upload": "node upload.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   }
