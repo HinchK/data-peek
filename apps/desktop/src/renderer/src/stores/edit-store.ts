@@ -109,6 +109,30 @@ function getInitialTabEditState(): TabEditState {
   }
 }
 
+export type GridHoldReason = 'pending_edits' | 'cell_editing'
+
+/**
+ * Why a live refresh must leave a tab's displayed rows alone: the user has
+ * uncommitted inline edits captured against the rows on screen, or a cell editor
+ * is open over them. Shaped as a pure read of `tabEdits` so it doubles as a
+ * zustand selector — Watch Mode's refresh path and the UI that has to explain
+ * the resulting hold must agree on the rule, or the grid freezes with nothing on
+ * screen to say why.
+ */
+export function gridHoldReason(
+  tabEdits: Map<string, TabEditState>,
+  tabId: string
+): GridHoldReason | null {
+  const edits = tabEdits.get(tabId)
+  if (!edits) return null
+  if (edits.editingCell) return 'cell_editing'
+  // Same set of signals hasPendingChanges counts.
+  if (edits.modifiedCells.size > 0 || edits.newRows.length > 0 || edits.deletedRowKeys.size > 0) {
+    return 'pending_edits'
+  }
+  return null
+}
+
 /**
  * Build a stable identity string from a row's primary key values.
  *

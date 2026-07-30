@@ -10,7 +10,7 @@ import {
 } from '@/lib/sql-helpers'
 import { useConnectionStore } from './connection-store'
 import { useSettingsStore } from './settings-store'
-import { useEditStore } from './edit-store'
+import { gridHoldReason, useEditStore } from './edit-store'
 import { useWatchStore } from './watch-store'
 import { useTimeMachineStore } from './time-machine-store'
 import { usePerfIndicatorStore } from './perf-indicator-store'
@@ -819,10 +819,9 @@ export const useTabStore = create<TabState>()(
         // other trap — a commit would then target a row the user never saw. So
         // while the user is mid-edit the rows stay put; the tick is still
         // recorded in the watch store, and the next tick after they commit or
-        // discard brings the grid forward.
-        const edits = useEditStore.getState().tabEdits.get(tabId)
-        if (edits?.editingCell) return false
-        if (useEditStore.getState().hasPendingChanges(tabId)) return false
+        // discard brings the grid forward. WatchButton reads the same rule to
+        // label the hold, so the stall is explained rather than silent.
+        if (gridHoldReason(useEditStore.getState().tabEdits, tabId)) return false
 
         // The SQL gate (lib/watch-sql-gate.ts) only lets a single statement be
         // watched, so a watched tab's multiResult holds exactly that SELECT and

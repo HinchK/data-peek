@@ -25,6 +25,7 @@ import {
   keys
 } from '@data-peek/ui'
 import { useWatchStore } from '@/stores/watch-store'
+import { gridHoldReason, useEditStore } from '@/stores/edit-store'
 import { gateForWatch } from '@/lib/watch-sql-gate'
 import {
   CADENCE_PRESETS_MS,
@@ -114,6 +115,12 @@ export function WatchButton({
   const paused = !!watchState?.paused
   const config = watchState?.config ?? DEFAULT_WATCH_CONFIG
 
+  // The query keeps polling while the user has an inline edit in flight, but the
+  // tab store declines to move the rows under it (see applyWatchResult). Without
+  // saying so, the pill would count down to ticks that visibly do nothing.
+  const holdReason = useEditStore((s) => gridHoldReason(s.tabEdits, tabId))
+  const held = enabled && !paused && holdReason !== null
+
   const gate = useMemo(() => gateForWatch(query), [query])
 
   // Hold latest runner in a ref so the scheduler doesn't tear/re-register
@@ -188,19 +195,27 @@ export function WatchButton({
   const buttonLabel = useMemo(() => {
     if (!enabled) return 'Watch'
     if (paused) return 'Paused'
+    if (held) return 'Held'
     if (countdownMs === null) return 'Watching…'
     const s = Math.ceil(countdownMs / 1000)
     return `Watching · ${s}s`
-  }, [enabled, paused, countdownMs])
+  }, [enabled, paused, held, countdownMs])
 
   const cadenceLabel = formatCadence(config.cadenceMs)
   const watchableDisabled = disabled || (!enabled && !gate.ok)
+
+  const holdMessage =
+    holdReason === 'cell_editing'
+      ? `Grid held while you edit a cell — still polling every ${cadenceLabel}; rows refresh when you finish.`
+      : `Grid held: you have uncommitted edits. Still polling every ${cadenceLabel}; rows refresh once you commit or discard.`
 
   const tooltipMessage = !enabled
     ? gate.ok
       ? 'Watch this query — re-runs on a cadence with live diff (⇧⌘W)'
       : `Watch Mode disabled: ${gate.reason === 'empty' ? 'no query' : (gate.detail ?? gate.reason)}`
-    : `Watching every ${cadenceLabel} · ⇧⌘W to stop`
+    : held
+      ? holdMessage
+      : `Watching every ${cadenceLabel} · ⇧⌘W to stop`
 
   return (
     <Popover open={open && enabled} onOpenChange={(o) => enabled && setOpen(o)}>
@@ -226,15 +241,21 @@ export function WatchButton({
                 }}
                 className={cn(
                   'gap-1.5 h-7 px-2.5 transition-colors',
-                  enabled && !paused && 'text-amber-500 bg-amber-500/10 hover:bg-amber-500/15',
-                  enabled && paused && 'text-muted-foreground bg-muted/50',
+                  enabled &&
+                    !paused &&
+                    !held &&
+                    'text-amber-500 bg-amber-500/10 hover:bg-amber-500/15',
+                  enabled && (paused || held) && 'text-muted-foreground bg-muted/50',
                   enabled && alertFlash && 'text-rose-500 bg-rose-500/10 hover:bg-rose-500/15'
                 )}
                 data-watch-active={enabled || undefined}
+                data-watch-held={held || undefined}
               >
                 {enabled ? (
                   paused ? (
                     <EyeOff className="size-3.5" />
+                  ) : held ? (
+                    <Pause className="size-3.5" />
                   ) : alertFlash ? (
                     <BellRing className="size-3.5" />
                   ) : (
@@ -269,13 +290,26 @@ export function WatchButton({
             <Activity className="size-3.5 text-amber-500" />
             <span className="text-xs font-semibold">Watching</span>
           </div>
-          {lastSnap?.error && (
-            <span className="flex items-center gap-1 text-[10px] text-destructive">
-              <AlertTriangle className="size-3" />
-              error
-            </span>
-          )}
+          <div className="flex items-center gap-2">
+            {held && (
+              <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                <Pause className="size-3" />
+                grid held
+              </span>
+            )}
+            {lastSnap?.error && (
+              <span className="flex items-center gap-1 text-[10px] text-destructive">
+                <AlertTriangle className="size-3" />
+                error
+              </span>
+            )}
+          </div>
         </div>
+        {held && (
+          <p className="px-3 pt-2 text-[10px] leading-snug text-amber-600 dark:text-amber-400">
+            {holdMessage}
+          </p>
+        )}
 
         <div className="px-3 py-2 space-y-2">
           <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">

@@ -135,6 +135,9 @@ describe('watch scheduler refreshes the grid it decorates', () => {
       },
       null
     )
+    // A previous failure left an error banner over the grid; a good tick has to
+    // clear it, not leave the panel showing an error next to fresh rows.
+    useTabStore.getState().updateTabResult(tabId, null, 'connection terminated')
     await startWatch([[{ id: 1, status: 'running' }]])
 
     const tab = useTabStore.getState().getTab(tabId)
@@ -200,6 +203,46 @@ describe('watch scheduler refreshes the grid it decorates', () => {
     ).toBe('queued')
   })
 
+  it('re-reads the on-screen rows each tick, so a manual re-run cannot desync the baseline', async () => {
+    // The sequence a declined refresh most often leads to: the commit that
+    // releases the hold triggers a manual re-run (query-results wires
+    // onChangesCommitted to handleRunQuery), which writes rows the scheduler
+    // never produced. Anything cached inside the scheduler is stale from here on.
+    seedGrid(tabId, [{ id: 1, status: 'queued' }])
+    await startWatch([
+      [{ id: 1, status: 'queued' }],
+      [{ id: 1, status: 'queued' }],
+      [
+        { id: 1, status: 'queued' },
+        { id: 2, status: 'queued' }
+      ]
+    ])
+
+    const edit = useEditStore.getState()
+    edit.enterEditMode(tabId, editContext)
+    edit.updateCellValue(tabId, { id: 1, status: 'queued' }, 'status', 'cancelled')
+    watchScheduler.triggerNow(tabId)
+    await waitForTick(tabId, 2)
+
+    // The commit lands and the manual re-run puts rows on screen that no tick
+    // produced: row 1 now reads `cancelled`, and row 2 has appeared.
+    seedGrid(tabId, [
+      { id: 1, status: 'cancelled' },
+      { id: 2, status: 'queued' }
+    ])
+
+    watchScheduler.triggerNow(tabId)
+    await waitForTick(tabId, 3)
+
+    const diff = useWatchStore.getState().getState(tabId)?.diff
+    // cancelled → queued is a real change the user watches happen, so it must be
+    // highlighted even though no tick ever reported `cancelled`.
+    expect(diff?.cells.get(cellKey('1', 'status'))?.previousValue).toBe('cancelled')
+    // Row 2 was already on screen, so it is not new — no green "added" band.
+    expect(diff?.addedRowKeys.size).toBe(0)
+    expect(diff?.removedRowKeys.size).toBe(0)
+  })
+
   it('holds the grid still while a cell editor is open', async () => {
     seedGrid(tabId, [{ id: 1, status: 'queued' }])
     await startWatch([[{ id: 1, status: 'queued' }], [{ id: 1, status: 'running' }]])
@@ -213,16 +256,20 @@ describe('watch scheduler refreshes the grid it decorates', () => {
     expect(gridRows(tabId)).toEqual([{ id: 1, status: 'queued' }])
   })
 
-  it('keeps the last good rows on screen when a tick errors', async () => {
+  it('keeps the last good rows on screen when a tick errors, and reports no row churn', async () => {
     seedGrid(tabId, [{ id: 1, status: 'queued' }])
     await startWatch([[{ id: 1, status: 'running' }], { error: 'connection terminated' }])
 
     watchScheduler.triggerNow(tabId)
     await waitForTick(tabId, 2)
 
-    expect(useWatchStore.getState().getState(tabId)?.snapshots[0]?.error).toBe(
-      'connection terminated'
-    )
+    const state = useWatchStore.getState().getState(tabId)
+    expect(state?.snapshots[0]?.error).toBe('connection terminated')
     expect(gridRows(tabId)).toEqual([{ id: 1, status: 'running' }])
+    // A failed poll carries no rows. Diffing its empty result against the last
+    // good one would report every row as removed, inflating the totals and
+    // firing rows-removed alerts on nothing but an outage.
+    expect(state?.totals.rowsRemovedCumulative).toBe(0)
+    expect(state?.diff?.removedRowKeys.size).toBe(0)
   })
 })

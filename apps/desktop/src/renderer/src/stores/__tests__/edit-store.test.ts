@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { useEditStore } from '../edit-store'
+import { gridHoldReason, useEditStore } from '../edit-store'
 import type { EditContext, ColumnInfo } from '@data-peek/shared'
 
 // Mock crypto.randomUUID
@@ -659,6 +659,65 @@ describe('useEditStore', () => {
 
       const tabEdit = useEditStore.getState().tabEdits.get(tabId)
       expect(tabEdit?.editingCell).toBeNull()
+    })
+  })
+
+  describe('gridHoldReason (why a live refresh must not move the rows)', () => {
+    // Watch Mode's per-tick refresh and the pill that explains the resulting
+    // hold both read this, so they can't disagree about when the grid is frozen.
+    it('returns null for a tab with no edit state at all', () => {
+      expect(gridHoldReason(useEditStore.getState().tabEdits, tabId)).toBeNull()
+    })
+
+    it('returns null in edit mode with nothing pending', () => {
+      useEditStore.getState().enterEditMode(tabId, createContext())
+      expect(gridHoldReason(useEditStore.getState().tabEdits, tabId)).toBeNull()
+    })
+
+    it('reports cell_editing while a cell editor is open', () => {
+      const store = useEditStore.getState()
+      store.enterEditMode(tabId, createContext())
+      store.startCellEdit(tabId, 0, 'name')
+      expect(gridHoldReason(useEditStore.getState().tabEdits, tabId)).toBe('cell_editing')
+
+      useEditStore.getState().cancelCellEdit(tabId)
+      expect(gridHoldReason(useEditStore.getState().tabEdits, tabId)).toBeNull()
+    })
+
+    it('reports pending_edits for a modified cell, a new row, or a delete marker', () => {
+      const store = useEditStore.getState()
+      store.enterEditMode(tabId, createContext())
+
+      store.updateCellValue(tabId, { id: 1, name: 'A' }, 'name', 'B')
+      expect(gridHoldReason(useEditStore.getState().tabEdits, tabId)).toBe('pending_edits')
+
+      useEditStore.getState().clearPendingChanges(tabId)
+      useEditStore.getState().addNewRow(tabId, { name: 'New' })
+      expect(gridHoldReason(useEditStore.getState().tabEdits, tabId)).toBe('pending_edits')
+
+      useEditStore.getState().clearPendingChanges(tabId)
+      useEditStore.getState().markRowForDeletion(tabId, { id: 2, name: 'Doomed' })
+      expect(gridHoldReason(useEditStore.getState().tabEdits, tabId)).toBe('pending_edits')
+
+      useEditStore.getState().clearPendingChanges(tabId)
+      expect(gridHoldReason(useEditStore.getState().tabEdits, tabId)).toBeNull()
+    })
+
+    it('agrees with hasPendingChanges on every pending shape', () => {
+      const store = useEditStore.getState()
+      store.enterEditMode(tabId, createContext())
+      store.updateCellValue(tabId, { id: 1, name: 'A' }, 'name', 'B')
+
+      expect(useEditStore.getState().hasPendingChanges(tabId)).toBe(true)
+      expect(gridHoldReason(useEditStore.getState().tabEdits, tabId)).toBe('pending_edits')
+    })
+
+    it('is scoped to the tab it is asked about', () => {
+      const store = useEditStore.getState()
+      store.enterEditMode(tabId, createContext())
+      store.updateCellValue(tabId, { id: 1, name: 'A' }, 'name', 'B')
+
+      expect(gridHoldReason(useEditStore.getState().tabEdits, 'other-tab')).toBeNull()
     })
   })
 

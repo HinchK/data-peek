@@ -52,13 +52,6 @@ interface RegisteredTab {
   lastPlan: KeyingPlan | null
   /** Field signature for cache invalidation of lastPlan. */
   lastFieldSig: string | null
-  /**
-   * Rows currently rendered in the tab's grid, with the plan they were keyed
-   * by. This — not the previous snapshot — is the diff baseline: a tick whose
-   * refresh was declined leaves the grid behind, and the next accepted refresh
-   * has to highlight the whole transition the user is about to see.
-   */
-  lastApplied: { rows: ReadonlyArray<Record<string, unknown>>; plan: KeyingPlan } | null
 }
 
 /**
@@ -94,8 +87,7 @@ class WatchScheduler {
       tickCounter: 0,
       inFlight: false,
       lastPlan: null,
-      lastFieldSig: null,
-      lastApplied: null
+      lastFieldSig: null
     })
     this.ensureVisibilityListener()
     this.ensureTabStoreListener()
@@ -182,6 +174,15 @@ class WatchScheduler {
         fields: result.fields
       }
 
+      // Diff against the rows on screen, read from the tab immediately before we
+      // overwrite them. Caching them here instead would go stale the moment
+      // anything else writes tab.result — a manual re-run, or the re-run that
+      // fires when the user commits the very edits that made us decline a
+      // refresh — and the diff would then describe a transition nobody saw.
+      const displayedTab = useTabStore.getState().getTab(tabId)
+      const displayedRows =
+        displayedTab && 'result' in displayedTab ? displayedTab.result?.rows : undefined
+
       // The grid renders tab.result, not the snapshot, so a tick has to write
       // there too — otherwise the overlay highlights cells whose on-screen text
       // is still the previous value, which is the whole point of Watch Mode.
@@ -198,10 +199,9 @@ class WatchScheduler {
 
       const latest = useWatchStore.getState().states[tabId]
       const previousSnap = latest?.snapshots[0]
-      const displayed = entry.lastApplied
       const diff = refreshed
         ? computeDiff({
-            previous: displayed ? { rows: displayed.rows, keyingPlan: displayed.plan } : undefined,
+            previous: displayedRows ? { rows: displayedRows, keyingPlan: plan } : undefined,
             next: {
               rows: result.rows,
               keyingPlan: plan,
@@ -212,7 +212,6 @@ class WatchScheduler {
             fadeMs: latest?.config.fadeMs ?? 8000
           })
         : carryDiff(latest?.diff ?? null, plan)
-      if (refreshed) entry.lastApplied = { rows: result.rows, plan }
 
       // The watch could've been stopped while the query was in flight.
       if (useWatchStore.getState().states[tabId]?.enabled) {
