@@ -55,3 +55,7 @@ docs/superpowers/
 .windsurf/
 skills/
 skills-lock.json
+
+tools/feature-clips/footage/*
+!tools/feature-clips/footage/.gitkeep
+tools/feature-clips/dist/
