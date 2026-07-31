@@ -46,5 +46,15 @@ test('ai-to-sql', async ({ window, cursor, pg }) => {
     .first()
   await expect(sqlBlock).toContainText(/organizations/i, { timeout: 5000 })
   await expect(sqlBlock).toContainText(/invoices/i)
-  await window.waitForTimeout(2600)
+  await window.waitForTimeout(1600)
+
+  // The feature's claim is a *runnable* query, so run it. The table-name checks
+  // above would pass on syntactically broken SQL that merely mentions the right
+  // names; only executing it proves the claim. Waiting on the row count means a
+  // failed run — which renders "Query failed" instead — times out loudly rather
+  // than filming a broken result panel.
+  await cursor.click('button:has-text("Run Query")')
+  await expect(window.getByText(/[1-9]\d* rows?/).first()).toBeVisible({ timeout: 30000 })
+  await expect(window.getByText('Query failed')).toHaveCount(0)
+  await window.waitForTimeout(2400)
 })
