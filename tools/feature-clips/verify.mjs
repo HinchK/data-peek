@@ -21,6 +21,11 @@ function check(cond, msg) {
  * `from`, compress `from`-`to` by `factor`, then resume normal speed to `out`.
  * Mirrors the setpts math in encode.mjs so a regression there shows up here
  * as a duration mismatch instead of silently passing.
+ *
+ * Deliberate limitation: this shares its inputs with the encoder, so it proves the
+ * arithmetic is self-consistent and nothing more. A ramp window aimed at entirely
+ * the wrong footage — compressing the interesting part instead of a dead wait —
+ * produces a correct duration and passes. Watch a ramped clip before committing it.
  */
 function expectedDuration(clip) {
   if (!clip.speedRamp) return clip.out - clip.in
@@ -28,8 +33,21 @@ function expectedDuration(clip) {
   return from - clip.in + (to - from) / factor + (clip.out - to)
 }
 
+/** Bounds the encoder itself does not enforce; a transposed window is otherwise silent. */
+function checkRampBounds(clip) {
+  if (!clip.speedRamp) return
+  const { from, to, factor } = clip.speedRamp
+  check(
+    from >= clip.in && from < to && to <= clip.out,
+    `${clip.id}: speedRamp window ${from}-${to} must satisfy in <= from < to <= out ` +
+      `(in ${clip.in}, out ${clip.out})`
+  )
+  check(factor > 1, `${clip.id}: speedRamp factor ${factor} must be > 1 to compress`)
+}
+
 for (const clip of cfg.clips) {
   const expected = expectedDuration(clip)
+  checkRampBounds(clip)
 
   for (const [ext, codec] of [
     ['mp4', 'h264'],

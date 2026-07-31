@@ -12,7 +12,7 @@ changed-cell background, the green added-row band) never render for a result
 of 50 rows or fewer, because the decoration overlay is gated behind
 `shouldVirtualize` in both grid components. That is nearly every realistic
 query. See `notes/_watch-mode-bugs.md` for the writeup (Bug 2 — a related,
-already-fixed bug, Bug 1, meant the grid didn't even repaint cell *text* on a
+already-fixed bug, Bug 1, meant the grid didn't even repaint cell _text_ on a
 tick; that one is not what blocks shipping). Do not add it back to the site
 without fixing Bug 2 first.
 
@@ -154,6 +154,24 @@ bandwidth trade for GitHub visitors, not a free upgrade. It may be worth
 converting only the clips where the static PNG is clearly worse (e.g. clips
 whose whole point is motion, like the palette narrowing as you type) rather
 than replacing every screenshot.
+
+## Speed ramps
+
+A clip whose footage contains a long dead wait — a local LLM thinking, a slow
+import — can compress that stretch instead of shipping it. Add to the manifest
+entry:
+
+    "speedRamp": { "from": 16.0, "to": 32.6, "factor": 5 }
+
+`from`/`to` are timestamps in the **source** footage, and the output runs
+`(from - in) + (to - from) / factor + (out - to)` seconds.
+
+**`verify.mjs` cannot tell you the window is aimed at the right thing.** It shares
+its inputs with the encoder, so it only proves the arithmetic is self-consistent —
+a ramp that compresses the interesting part instead of the dead wait produces a
+correct duration and passes. It does now reject an out-of-order or out-of-range
+window (`in <= from < to <= out`) and a `factor` of 1 or less, but semantics are
+yours to check: **watch a ramped clip before committing it.**
 
 ## Adding a new clip
 

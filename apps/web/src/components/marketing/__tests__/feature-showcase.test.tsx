@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { FeatureShowcase } from "../feature-showcase";
@@ -6,6 +6,9 @@ import { observers } from "../../../../vitest.setup";
 
 // FEATURE_CLIPS spans all 5 categories now that "ai" has clips of its own
 // (ai-to-sql, mcp-approval), so every category in CATEGORY_ORDER renders a tab.
+// That makes the tab-count assertion below blind to the empty-category filter in
+// feature-showcase.tsx — it would pass even if the filter were deleted — so the
+// suppression behaviour gets its own test with a mocked manifest instead.
 describe("FeatureShowcase", () => {
   beforeEach(() => {
     observers.length = 0;
@@ -19,6 +22,33 @@ describe("FeatureShowcase", () => {
     expect(tabs[0]).toHaveAttribute("aria-selected", "true");
   });
 
+  it("does not render a tab for a category with no clips", async () => {
+    vi.resetModules();
+    vi.doMock("../feature-clips", async () => {
+      const actual =
+        await vi.importActual<typeof import("../feature-clips")>(
+          "../feature-clips",
+        );
+      return {
+        ...actual,
+        FEATURE_CLIPS: actual.FEATURE_CLIPS.filter(
+          (c) => c.category !== "infra",
+        ),
+      };
+    });
+
+    const { FeatureShowcase: Showcase } = await import("../feature-showcase");
+    render(<Showcase />);
+
+    expect(
+      screen.queryByRole("tab", { name: "Infrastructure" }),
+    ).not.toBeInTheDocument();
+    expect(screen.getAllByRole("tab")).toHaveLength(4);
+
+    vi.doUnmock("../feature-clips");
+    vi.resetModules();
+  });
+
   it("shows exactly one video at a time", () => {
     render(<FeatureShowcase />);
     expect(screen.getAllByTestId("clip-video")).toHaveLength(1);
@@ -28,8 +58,8 @@ describe("FeatureShowcase", () => {
     const user = userEvent.setup();
     render(<FeatureShowcase />);
 
-    // The editor tab (selected by default) has only one feature, so switch to
-    // the "data" category first to get a list with more than one option.
+    // Switch to "data" first so the option list is guaranteed to hold more than
+    // one entry regardless of how the editor category grows.
     await user.click(screen.getByRole("tab", { name: "Data" }));
 
     const options = screen.getAllByRole("option");
@@ -55,7 +85,10 @@ describe("FeatureShowcase", () => {
     const tabs = screen.getAllByRole("tab");
     await user.click(tabs[1]);
     expect(tabs[1]).toHaveAttribute("aria-selected", "true");
-    expect(screen.getAllByRole("option")[0]).toHaveAttribute("aria-selected", "true");
+    expect(screen.getAllByRole("option")[0]).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
   });
 
   it("wires every tab to the single tabpanel it controls", () => {

@@ -20,8 +20,11 @@ test('inline-editing', async ({ window, cursor, pg }) => {
   await window.waitForTimeout(500)
 
   await cursor.click('.monaco-editor')
-  // Select id + a primary key so the result is recognised as editable (see
-  // analyzeEditableSelect in src/renderer/src/lib/editable-select.ts).
+  // Project id — users' only primary key — so the result is recognised as editable.
+  // The rule is in resolveEditSourceTable (src/renderer/src/components/query-editor/
+  // use-editable-result.ts): every primary-key column must appear in the projection.
+  // analyzeEditableSelect only parses table and projection shape; it has no concept
+  // of primary keys.
   await cursor.type('SELECT id, email, name, created_at FROM users ORDER BY email LIMIT 5')
   await window.waitForTimeout(700)
 

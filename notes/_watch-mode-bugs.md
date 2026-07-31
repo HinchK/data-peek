@@ -134,12 +134,16 @@ asserts the amber decoration and **fails today for exactly this reason**. When i
 passes, re-run the capture and add `watch-mode` to `clips.manifest.json` and
 `feature-clips.ts` — no new capture code needed.
 
-Until then, two public claims are false for results of ≤50 rows and should be
-revisited when the fix lands:
+Until then, **three** public surfaces are false for results of ≤50 rows. Revisit all
+of them when the fix lands — this list is the authoritative one, so keep it complete:
 
 - `apps/web/src/components/marketing/features.tsx` — the Watch Mode feature copy
 - `notes/watch-mode.mdx` — a published blog post promising "changed cells flash
   amber, new rows enter green"
+- `apps/docs/content/docs/features/watch-mode.mdx` — the docs site page, in four
+  places: the frontmatter `description` (line 3), the intro paragraph (line 8), and
+  the "Added rows" / "Changed cells" bullets (lines 50-51). No draft gate, so it is
+  live.
 
 ## Note on branching
 
