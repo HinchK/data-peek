@@ -39,8 +39,15 @@ test('health-monitor', async ({ window, cursor, pg }) => {
   // real total, cache hit ratios as percentages, and a clean locks panel.
   await expect(window.getByText(/DB Total:/)).toBeVisible({ timeout: 10000 })
   await expect(window.getByText('public.users').first()).toBeVisible({ timeout: 10000 })
-  await expect(window.getByText('Buffer Cache')).toBeVisible({ timeout: 10000 })
-  await expect(window.getByText(/%/).first()).toBeVisible({ timeout: 10000 })
+
+  // Scoped to the Buffer Cache card, and requiring two or three digits, because a
+  // regressed cache-stats query degrades to `0%` rather than erroring
+  // (bufferCacheHitRatio is `Number(row?.buffer_cache_hit_ratio ?? 0)`). Matching a
+  // bare `%` anywhere on the page would film meaningless numbers and still pass.
+  const bufferCacheCard = window.locator('div:has(> p:text-is("Buffer Cache"))')
+  await expect(bufferCacheCard).toBeVisible({ timeout: 10000 })
+  await expect(bufferCacheCard).toContainText(/\d{2,3}(\.\d+)?%/, { timeout: 10000 })
+
   await expect(window.getByText('No blocking locks')).toBeVisible({ timeout: 10000 })
   await window.waitForTimeout(900)
 

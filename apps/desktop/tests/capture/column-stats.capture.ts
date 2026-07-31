@@ -36,8 +36,15 @@ test('column-stats', async ({ window, cursor, pg }) => {
   await expect(panel.getByText('amount_cents')).toBeVisible({ timeout: 5000 })
   // Waits out the loading skeleton — the real numbers only land once the stats
   // query round-trips through the connection.
+  // Pin the computed values, not just the labels: Min/Max/Avg render unconditionally
+  // once statsType is 'numeric', so broken aggregate SQL returning any non-null
+  // number would satisfy a label-only check. These come from the deterministic seed
+  // (10 invoices at 1900/4900/99900 cents), and Min/Max are rendered raw via
+  // String() rather than through the locale formatter, so they match exactly.
   await expect(panel.getByText('Min')).toBeVisible({ timeout: 8000 })
+  await expect(panel.getByText('1900', { exact: true })).toBeVisible({ timeout: 8000 })
   await expect(panel.getByText('Max')).toBeVisible({ timeout: 8000 })
+  await expect(panel.getByText('99900', { exact: true })).toBeVisible({ timeout: 8000 })
   await expect(panel.getByText('Avg')).toBeVisible({ timeout: 8000 })
   await expect(panel.locator('[data-testid="column-stats-histogram"]')).toBeVisible({
     timeout: 8000
