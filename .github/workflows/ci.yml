@@ -61,3 +61,13 @@ jobs:
 
       - name: Typecheck desktop
         run: pnpm --filter @data-peek/desktop typecheck
+
+      # Covers the marketing site's ClipPlayer, including the
+      # renderToString + hydrateRoot regression test for the
+      # prefers-reduced-motion controls attribute — a laptop-only guarantee
+      # until this ran here.
+      - name: Run web tests
+        run: pnpm --filter @data-peek/web test
+
+      - name: Typecheck web
+        run: pnpm --filter @data-peek/web typecheck

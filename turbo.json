@@ -48,6 +48,9 @@
       "dependsOn": ["^typecheck"],
       "outputs": []
     },
+    "test": {
+      "outputs": []
+    },
     "typecheck:node": {
       "outputs": []
     },

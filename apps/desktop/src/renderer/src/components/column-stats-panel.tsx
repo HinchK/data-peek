@@ -36,7 +36,7 @@ interface HistogramProps {
 function Histogram({ buckets }: HistogramProps) {
   const maxCount = Math.max(...buckets.map((b) => b.count), 1)
   return (
-    <div className="space-y-1">
+    <div className="space-y-1" data-testid="column-stats-histogram">
       {buckets.map((bucket, i) => (
         <div key={i} className="flex items-center gap-2">
           <div className="w-20 text-right shrink-0">
@@ -69,7 +69,7 @@ interface CommonValuesProps {
 function CommonValuesList({ values }: CommonValuesProps) {
   const maxCount = Math.max(...values.map((v) => v.count), 1)
   return (
-    <div className="space-y-1.5">
+    <div className="space-y-1.5" data-testid="column-stats-top-values">
       {values.map((item) => (
         <div key={item.value ?? '∅null∅'} className="space-y-0.5">
           <div className="flex items-center justify-between">
@@ -164,13 +164,22 @@ interface ColumnStatsPanelProps {
 
 export function ColumnStatsPanel({ stats, isLoading, error, onClose }: ColumnStatsPanelProps) {
   return (
-    <div className="flex flex-col h-full border-l border-border/50 bg-background w-72 shrink-0">
+    <div
+      className="flex flex-col h-full border-l border-border/50 bg-background w-72 shrink-0"
+      data-testid="column-stats-panel"
+    >
       <div className="flex items-center justify-between px-3 py-2 border-b border-border/50 shrink-0">
         <div className="flex items-center gap-2">
           <BarChart2 className="size-4 text-muted-foreground" />
           <span className="text-sm font-medium">Column Stats</span>
         </div>
-        <Button variant="ghost" size="icon" className="size-6" onClick={onClose}>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="size-6"
+          data-testid="column-stats-close"
+          onClick={onClose}
+        >
           <X className="size-3" />
         </Button>
       </div>

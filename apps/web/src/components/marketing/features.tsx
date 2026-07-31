@@ -10,6 +10,7 @@ const categories: { id: string; label: string; items: Feature[] }[] = [
       {
         title: "Command palette",
         body: "⌘K opens every action. Switch connections, run queries, jump to tables.",
+        href: "#feature-command-palette",
       },
       {
         title: "Monaco editor",
@@ -22,6 +23,7 @@ const categories: { id: string; label: string; items: Feature[] }[] = [
       {
         title: "Inline editing",
         body: "Click a cell, change the value, preview the SQL, commit or undo.",
+        href: "#feature-inline-editing",
       },
       {
         title: "Saved queries",
@@ -56,14 +58,17 @@ const categories: { id: string; label: string; items: Feature[] }[] = [
       {
         title: "Health monitor",
         body: "Active queries, cache hit ratios, locks, table sizes. Kill a stuck query live.",
+        href: "#feature-health-monitor",
       },
       {
         title: "Column statistics",
         body: "One click profiles a column — min, max, avg, null rate, histogram, top values.",
+        href: "#feature-column-stats",
       },
       {
         title: "Query plans",
         body: "EXPLAIN ANALYZE rendered as a tree, not a wall of text.",
+        href: "#feature-query-plans",
       },
     ],
   },
@@ -74,6 +79,7 @@ const categories: { id: string; label: string; items: Feature[] }[] = [
       {
         title: "Plain-English to SQL",
         body: "Schema-aware. Ask what you want, get a runnable query back.",
+        href: "#feature-ai-to-sql",
       },
       {
         title: "Charts from a sentence",
@@ -86,6 +92,7 @@ const categories: { id: string; label: string; items: Feature[] }[] = [
       {
         title: "MCP server",
         body: "Read-only queries run free. Writes are gated behind an in-app approval before they touch the database.",
+        href: "#feature-mcp-approval",
       },
       {
         title: "Audit log",
@@ -105,6 +112,7 @@ const categories: { id: string; label: string; items: Feature[] }[] = [
       {
         title: "ER diagrams",
         body: "Interactive schema map. Filter to a table and see its graph of relationships.",
+        href: "#feature-er-diagram",
       },
       {
         title: "Triggers",
@@ -121,6 +129,7 @@ const categories: { id: string; label: string; items: Feature[] }[] = [
       {
         title: "Data masking",
         body: "Blur sensitive columns for demos and screenshots. Regex-based auto rules.",
+        href: "#feature-data-masking",
       },
       {
         title: "PG notifications",
@@ -139,14 +148,17 @@ const categories: { id: string; label: string; items: Feature[] }[] = [
       {
         title: "SSH tunnels",
         body: "Connect through a bastion with password or key auth. Tunnel lifetime tied to the connection.",
+        href: "#feature-ssh-tunnels",
       },
       {
         title: "Credentials encrypted locally",
         body: "Stored with the OS keychain. We never see your passwords or API keys.",
+        href: "#feature-local-credentials",
       },
       {
         title: "No telemetry",
         body: "Zero analytics, zero remote logging. Your queries never leave your machine.",
+        href: "#feature-no-telemetry",
       },
       {
         title: "Dark & light",
@@ -196,7 +208,7 @@ export function Features() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-end mb-14">
           <div className="lg:col-span-7">
             <div className="text-[10.5px] uppercase tracking-[0.18em] text-[var(--n-fg-faint)]">
-              02 — capabilities
+              03 — capabilities
             </div>
             <h2 className="mt-4 text-[36px] sm:text-[48px] leading-[1.02] tracking-[-0.02em] text-[var(--n-fg)] font-medium">
               Built for the part of the day

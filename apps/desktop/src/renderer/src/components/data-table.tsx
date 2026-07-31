@@ -384,6 +384,7 @@ export function DataTable<TData extends Record<string, unknown>>({
                         <Button
                           variant="ghost"
                           size="icon"
+                          data-testid={`column-stats-trigger-${col.name}`}
                           className="size-5 ml-0.5 opacity-0 group-hover/head:opacity-100 hover:opacity-100 focus:opacity-100"
                           onClick={(e) => e.stopPropagation()}
                         >
@@ -512,7 +513,17 @@ export function DataTable<TData extends Record<string, unknown>>({
     [pageSize]
   )
 
-  const tableGlobalFilterFn = React.useCallback((row: any) => globalFilterFn(row), [globalFilterFn])
+  const tableGlobalFilterFn = React.useCallback(
+    (row: { original: unknown }) => globalFilterFn(row),
+    [globalFilterFn]
+  )
+
+  // A watch tick hands us a fresh `data` array every cadence, and TanStack
+  // resets the page index whenever data identity changes — which would yank a
+  // watcher on page 3 back to page 1 on every tick. A boolean selector keeps
+  // this cheap: it re-renders when the watch is toggled, not per tick (the same
+  // trick query-results.tsx uses for the Time Machine view flag).
+  const isWatching = useWatchStore((s) => !!(tabId && s.states[tabId]?.enabled))
 
   const table = useReactTable({
     data: sortedData,
@@ -521,6 +532,7 @@ export function DataTable<TData extends Record<string, unknown>>({
     getFilteredRowModel: getFilteredRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     globalFilterFn: tableGlobalFilterFn,
+    autoResetPageIndex: !isWatching,
     state: tableState,
     initialState: tableInitialState
   })

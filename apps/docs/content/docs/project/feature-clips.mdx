@@ -1,0 +1,74 @@
+---
+title: Feature clips
+description: How the marketing site's feature clips are captured, encoded, and kept honest
+---
+
+# Feature clips
+
+The "see it work" section on [datapeek.dev](https://datapeek.dev) plays real
+captures of the desktop app — Playwright driving a built Electron binary
+against a seeded Postgres database — not mockups or hand-drawn animations.
+Four clips ship today: command palette, query plans, ER diagrams, and data
+masking. Three more features (SSH tunnels, local credential storage, no
+telemetry) have nothing visual to capture, so they're rendered as small
+CSS/SVG motion graphics instead of video.
+
+One clip, Watch Mode, was captured but is deliberately not shipped: filming
+it surfaced a real product bug where the diff highlight overlay (the amber
+changed-cell background, the green added-row band) never renders for a
+result of 50 rows or fewer — nearly every realistic query — because it's
+gated behind the grid's virtualization threshold. The capture spec is kept in
+the repository — it fails on purpose, as the acceptance test for the bug —
+but the clip is not wired into the site. See
+[`notes/_watch-mode-bugs.md`](https://github.com/Rohithgilla12/data-peek/blob/main/notes/_watch-mode-bugs.md)
+for the detail.
+
+## Pipeline
+
+Capture, encoding, verification, and upload all live in
+[`tools/feature-clips`](https://github.com/Rohithgilla12/data-peek/tree/main/tools/feature-clips),
+with the full mechanics documented in that directory's
+[README](https://github.com/Rohithgilla12/data-peek/blob/main/tools/feature-clips/README.md).
+In short:
+
+1. A Playwright spec in `apps/desktop/tests/capture/` drives the built app
+   and records raw footage.
+2. `encode.mjs` trims and transcodes it to MP4/WebM/poster (and GIF, for a
+   couple of clips) with ffmpeg.
+3. `verify.mjs` checks codecs, dimensions, and a 350&nbsp;KB size ceiling
+   with `ffprobe`.
+4. `upload.mjs` pushes the encoded assets to the R2 bucket the production
+   site serves from, reading credentials from the environment only.
+
+None of this runs in CI — captures need Docker, a full Electron build, and a
+desktop session. The site-side check that does run in CI is a manifest
+integrity test in `apps/web`, which fails the build if a clip referenced on
+the site has no encoded asset, or vice versa.
+
+## The convention that matters most
+
+Every capture spec asserts on the state it's supposed to be filming, not just
+that the app didn't crash. A spec that opens a dialog and immediately stops,
+without checking the dialog actually shows what the clip is about, can pass
+while recording nothing useful — that happened twice during this project.
+Treat the assertion as the point of the spec, and the recording as a
+byproduct of it passing.
+
+## Adding a clip
+
+The short version — full detail (asserting conventions, capture size,
+compression trade-offs, credential handling) is in the
+[pipeline README](https://github.com/Rohithgilla12/data-peek/blob/main/tools/feature-clips/README.md):
+
+1. Write a capture spec whose test title becomes the clip id.
+2. Capture, then add the id, in/out timestamps, and poster time to
+   `clips.manifest.json`.
+3. Encode and verify locally.
+4. Register the clip in `apps/web/src/components/marketing/feature-clips.ts`
+   so it appears in the showcase.
+5. Upload once the encoded assets look right.
+
+Conceptual features without anything to record follow a different path: they
+become a small component in
+`apps/web/src/components/marketing/motion/`, registered with
+`media: { kind: "motion", component: "<name>" }` instead of a video file.

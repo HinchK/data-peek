@@ -794,6 +794,7 @@ export function EditableDataTable<TData extends Record<string, unknown>>({
                     <Button
                       variant="ghost"
                       size="icon"
+                      data-testid={`column-stats-trigger-${col.name}`}
                       className="size-5 ml-0.5 opacity-0 group-hover/head:opacity-100 hover:opacity-100 focus:opacity-100"
                       onClick={(e) => e.stopPropagation()}
                     >
@@ -1052,7 +1053,10 @@ export function EditableDataTable<TData extends Record<string, unknown>>({
     [pageSize]
   )
 
-  const tableGlobalFilterFn = React.useCallback((row: any) => globalFilterFn(row), [globalFilterFn])
+  const tableGlobalFilterFn = React.useCallback(
+    (row: { original: unknown }) => globalFilterFn(row),
+    [globalFilterFn]
+  )
 
   const table = useReactTable({
     data: sortedData,

@@ -1,6 +1,7 @@
 import { Metadata } from "next";
 import { Header } from "@/components/marketing/header";
 import { Hero } from "@/components/marketing/hero";
+import { FeatureShowcase } from "@/components/marketing/feature-showcase";
 import { Features } from "@/components/marketing/features";
 import { Pricing } from "@/components/marketing/pricing";
 import { Faq } from "@/components/marketing/faq";
@@ -37,6 +38,7 @@ export default function Home() {
       <Header />
       <main>
         <Hero />
+        <FeatureShowcase />
         <Features />
         <Pricing />
         <Faq />

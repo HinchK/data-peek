@@ -1,0 +1,85 @@
+{
+  "targetWidth": 1280,
+  "fps": 25,
+  "gifWidth": 800,
+  "gifFps": 15,
+  "maxBytes": 358400,
+  "clips": [
+    {
+      "id": "command-palette",
+      "in": 7.4,
+      "out": 18.6,
+      "posterAt": 11,
+      "gif": true,
+      "speedRamp": null
+    },
+    {
+      "id": "query-plans",
+      "in": 22.5,
+      "out": 30.5,
+      "posterAt": 28,
+      "gif": false,
+      "speedRamp": null
+    },
+    {
+      "id": "er-diagram",
+      "in": 13.4,
+      "out": 23.4,
+      "posterAt": 20,
+      "gif": false,
+      "speedRamp": null
+    },
+    {
+      "id": "data-masking",
+      "in": 13,
+      "out": 22.2,
+      "posterAt": 20,
+      "gif": false,
+      "speedRamp": null
+    },
+    {
+      "id": "inline-editing",
+      "in": 14.8,
+      "out": 22.7,
+      "posterAt": 20.4,
+      "gif": false,
+      "speedRamp": null
+    },
+    {
+      "id": "health-monitor",
+      "in": 9,
+      "out": 18.4,
+      "posterAt": 14.6,
+      "gif": false,
+      "speedRamp": null
+    },
+    {
+      "id": "column-stats",
+      "in": 7,
+      "out": 17,
+      "posterAt": 13,
+      "gif": false,
+      "speedRamp": null
+    },
+    {
+      "id": "mcp-approval",
+      "in": 5.6,
+      "out": 13.8,
+      "posterAt": 10,
+      "gif": false,
+      "speedRamp": null
+    },
+    {
+      "id": "ai-to-sql",
+      "in": 9.5,
+      "out": 33.3,
+      "posterAt": 32,
+      "gif": false,
+      "speedRamp": {
+        "from": 13,
+        "to": 25,
+        "factor": 5
+      }
+    }
+  ]
+}

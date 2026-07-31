@@ -97,7 +97,7 @@ export function Faq() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
           <div className="lg:col-span-4">
             <div className="text-[10.5px] uppercase tracking-[0.18em] text-[var(--n-fg-faint)]">
-              04 — questions
+              05 — questions
             </div>
             <h2 className="mt-4 text-[32px] sm:text-[40px] leading-[1.05] tracking-[-0.02em] text-[var(--n-fg)] font-medium">
               Straight answers,

@@ -54,6 +54,25 @@ interface RegisteredTab {
   lastFieldSig: string | null
 }
 
+/**
+ * A diff that claims no new movement: already-highlighted cells keep their
+ * `changedAt` so their fade carries on. Used when a tick lands without the grid
+ * being refreshed (failed poll, or a refresh declined while the user is
+ * mid-edit) so the overlay keeps describing the rows still on screen.
+ */
+function carryDiff(previous: WatchDiff | null, plan: KeyingPlan | null): WatchDiff {
+  return {
+    cells: previous?.cells ?? new Map(),
+    addedRowKeys: new Set(),
+    removedRowKeys: new Set(),
+    keyingStrategy: plan?.strategy ?? 'row_position',
+    keyColumns: plan?.keyColumns ?? [],
+    // Fresh timestamp: applyTick counts cells whose changedAt equals computedAt
+    // as new, so reusing the previous one would double-count them.
+    computedAt: Date.now()
+  }
+}
+
 class WatchScheduler {
   private tabs = new Map<string, RegisteredTab>()
   private timers = new Map<string, ReturnType<typeof setTimeout>>()
@@ -155,25 +174,44 @@ class WatchScheduler {
         fields: result.fields
       }
 
+      // Diff against the rows on screen, read from the tab immediately before we
+      // overwrite them. Caching them here instead would go stale the moment
+      // anything else writes tab.result — a manual re-run, or the re-run that
+      // fires when the user commits the very edits that made us decline a
+      // refresh — and the diff would then describe a transition nobody saw.
+      const displayedTab = useTabStore.getState().getTab(tabId)
+      const displayedRows =
+        displayedTab && 'result' in displayedTab ? displayedTab.result?.rows : undefined
+
+      // The grid renders tab.result, not the snapshot, so a tick has to write
+      // there too — otherwise the overlay highlights cells whose on-screen text
+      // is still the previous value, which is the whole point of Watch Mode.
+      // The tab store declines the refresh while the user has an inline edit in
+      // flight; failed polls leave the last good rows up rather than blanking.
+      const refreshed =
+        !result.error &&
+        useTabStore.getState().applyWatchResult(tabId, {
+          columns: result.fields.map((f) => ({ name: f.name, dataType: f.dataType })),
+          rows: result.rows,
+          rowCount: result.rows.length,
+          durationMs: result.durationMs
+        })
+
       const latest = useWatchStore.getState().states[tabId]
       const previousSnap = latest?.snapshots[0]
-      const diff = computeDiff({
-        previous:
-          previousSnap && !previousSnap.error && entry.lastPlan
-            ? {
-                rows: previousSnap.rows,
-                keyingPlan: entry.lastPlan
-              }
-            : undefined,
-        next: {
-          rows: result.rows,
-          keyingPlan: plan,
-          fieldNames: result.fields.map((f) => f.name)
-        },
-        now: Date.now(),
-        carryFromPrevious: latest?.diff ?? null,
-        fadeMs: latest?.config.fadeMs ?? 8000
-      })
+      const diff = refreshed
+        ? computeDiff({
+            previous: displayedRows ? { rows: displayedRows, keyingPlan: plan } : undefined,
+            next: {
+              rows: result.rows,
+              keyingPlan: plan,
+              fieldNames: result.fields.map((f) => f.name)
+            },
+            now: Date.now(),
+            carryFromPrevious: latest?.diff ?? null,
+            fadeMs: latest?.config.fadeMs ?? 8000
+          })
+        : carryDiff(latest?.diff ?? null, plan)
 
       // The watch could've been stopped while the query was in flight.
       if (useWatchStore.getState().states[tabId]?.enabled) {
@@ -193,14 +231,7 @@ class WatchScheduler {
       }
       const latest = useWatchStore.getState().states[tabId]
       if (latest?.enabled) {
-        const carriedDiff: WatchDiff = {
-          cells: latest.diff?.cells ?? new Map(),
-          addedRowKeys: new Set(),
-          removedRowKeys: new Set(),
-          keyingStrategy: entry.lastPlan?.strategy ?? 'row_position',
-          keyColumns: entry.lastPlan?.keyColumns ?? [],
-          computedAt: Date.now()
-        }
+        const carriedDiff = carryDiff(latest.diff ?? null, entry.lastPlan)
         useWatchStore.getState().applyTick(tabId, snapshot, carriedDiff)
         // Alerts still run on failed ticks — `query_errors` exists for them.
         this.runAlerts(tabId, snapshot, latest.snapshots[0] ?? null, carriedDiff)

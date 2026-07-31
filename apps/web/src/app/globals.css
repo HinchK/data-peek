@@ -674,3 +674,12 @@ a[role="button"]:active {
   background-image: radial-gradient(circle, var(--n-line) 1px, transparent 1px);
   background-size: 8px 8px;
 }
+
+/*
+ * Reduced-motion handling for the SVG motion graphics (ssh-tunnel,
+ * local-vault, no-telemetry) is NOT done here. Their animations are SMIL
+ * (<animate>, <animateMotion>, <animateTransform>), which CSS cannot pause:
+ * animation-play-state only affects CSS animations, and display:none does
+ * not stop a running SMIL timeline. See use-svg-reduced-motion.ts, which
+ * calls svg.pauseAnimations()/unpauseAnimations() on the SVG DOM API instead.
+ */

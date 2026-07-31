@@ -10,7 +10,7 @@ import {
 } from '@/lib/sql-helpers'
 import { useConnectionStore } from './connection-store'
 import { useSettingsStore } from './settings-store'
-import { useEditStore } from './edit-store'
+import { gridHoldReason, useEditStore } from './edit-store'
 import { useWatchStore } from './watch-store'
 import { useTimeMachineStore } from './time-machine-store'
 import { usePerfIndicatorStore } from './perf-indicator-store'
@@ -232,6 +232,12 @@ interface TabState {
     multiResult: MultiQueryResult | null,
     error: string | null
   ) => void
+  /**
+   * Refresh a tab's displayed rows from a Watch Mode tick. Returns false when
+   * the refresh was declined, which tells the scheduler the grid still shows
+   * the previous rows. See the implementation for the edit-mode contract.
+   */
+  applyWatchResult: (tabId: string, result: QueryResult) => boolean
   setActiveResultIndex: (tabId: string, index: number) => void
   updateTabExecuting: (
     tabId: string,
@@ -803,6 +809,60 @@ export const useTabStore = create<TabState>()(
         }))
       },
 
+      applyWatchResult: (tabId, result) => {
+        const tab = get().tabs.find((t) => t.id === tabId)
+        if (!tab || !isExecutableTab(tab)) return false
+
+        // Watch Mode polls on a cadence, so it can't use updateTabResult: that
+        // drops pending inline edits, which would silently destroy in-progress
+        // work every few seconds. Keeping the edits *and* moving the rows is the
+        // other trap — a commit would then target a row the user never saw. So
+        // while the user is mid-edit the rows stay put; the tick is still
+        // recorded in the watch store, and the next tick after they commit or
+        // discard brings the grid forward. WatchButton reads the same rule to
+        // label the hold, so the stall is explained rather than silent.
+        if (gridHoldReason(useEditStore.getState().tabEdits, tabId)) return false
+
+        // The SQL gate (lib/watch-sql-gate.ts) only lets a single statement be
+        // watched, so a watched tab's multiResult holds exactly that SELECT and
+        // the grid reads tab.result. More than one statement means the grid is
+        // rendering from multiResult instead and this refresh wouldn't reach it.
+        const statements = tab.multiResult?.statements
+        if (statements && statements.length > 1) return false
+
+        set((state) => ({
+          tabs: state.tabs.map((t) => {
+            if (t.id !== tabId || !isExecutableTab(t)) return t
+            const single = t.multiResult?.statements[0]
+            // Unlike updateTabResult, currentPage is left alone: a tick refreshes
+            // the same query rather than running a new one, and yanking a watcher
+            // back to page 1 every cadence would make paged results unusable.
+            return {
+              ...t,
+              result,
+              error: null,
+              multiResult:
+                t.multiResult && single
+                  ? {
+                      ...t.multiResult,
+                      statements: [
+                        {
+                          ...single,
+                          fields: result.columns,
+                          rows: result.rows,
+                          rowCount: result.rowCount,
+                          durationMs: result.durationMs
+                        }
+                      ],
+                      totalDurationMs: result.durationMs
+                    }
+                  : t.multiResult
+            }
+          })
+        }))
+        return true
+      },
+
       setActiveResultIndex: (tabId, index) => {
         // Pending edits are captured against the previously active statement; switching to
         // a different statement (potentially a different table) would otherwise let those
@@ -1125,7 +1185,7 @@ export const useTabStore = create<TabState>()(
         if (typeof process !== 'undefined' && process.env.NODE_ENV === 'test') {
           return { getItem: () => null, setItem: () => {}, removeItem: () => {} }
         }
-        return typeof localStorage !== 'undefined' ? localStorage : ({} as any)
+        return typeof localStorage !== 'undefined' ? localStorage : ({} as unknown as Storage)
       }),
       partialize: (state) => ({
         // Only persist pinned tabs
