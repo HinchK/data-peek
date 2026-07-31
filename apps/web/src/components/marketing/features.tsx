@@ -23,6 +23,7 @@ const categories: { id: string; label: string; items: Feature[] }[] = [
       {
         title: "Inline editing",
         body: "Click a cell, change the value, preview the SQL, commit or undo.",
+        href: "#feature-inline-editing",
       },
       {
         title: "Saved queries",

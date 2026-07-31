@@ -62,6 +62,13 @@ export const FEATURE_CLIPS: FeatureClip[] = [
     media: { kind: "video", file: "data-masking", width: 1280, height: 800 },
   },
   {
+    id: "inline-editing",
+    title: "Inline editing",
+    blurb: "Click a cell, change the value, preview the SQL, commit or undo.",
+    category: "editor",
+    media: { kind: "video", file: "inline-editing", width: 1280, height: 800 },
+  },
+  {
     id: "ssh-tunnels",
     title: "SSH tunnels",
     blurb:
