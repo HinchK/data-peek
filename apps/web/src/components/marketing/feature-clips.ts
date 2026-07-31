@@ -76,6 +76,13 @@ export const FEATURE_CLIPS: FeatureClip[] = [
     media: { kind: "video", file: "health-monitor", width: 1280, height: 800 },
   },
   {
+    id: "column-stats",
+    title: "Column statistics",
+    blurb: "One click profiles a column — min, max, avg, null rate, histogram, top values.",
+    category: "performance",
+    media: { kind: "video", file: "column-stats", width: 1280, height: 800 },
+  },
+  {
     id: "ssh-tunnels",
     title: "SSH tunnels",
     blurb:

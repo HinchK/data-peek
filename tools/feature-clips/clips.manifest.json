@@ -52,6 +52,14 @@
       "posterAt": 14.6,
       "gif": false,
       "speedRamp": null
+    },
+    {
+      "id": "column-stats",
+      "in": 7.0,
+      "out": 17.0,
+      "posterAt": 13.0,
+      "gif": false,
+      "speedRamp": null
     }
   ]
 }

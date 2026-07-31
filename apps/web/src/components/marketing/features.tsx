@@ -63,6 +63,7 @@ const categories: { id: string; label: string; items: Feature[] }[] = [
       {
         title: "Column statistics",
         body: "One click profiles a column — min, max, avg, null rate, histogram, top values.",
+        href: "#feature-column-stats",
       },
       {
         title: "Query plans",
