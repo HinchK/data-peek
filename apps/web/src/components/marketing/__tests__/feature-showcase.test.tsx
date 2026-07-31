@@ -4,8 +4,8 @@ import userEvent from "@testing-library/user-event";
 import { FeatureShowcase } from "../feature-showcase";
 import { observers } from "../../../../vitest.setup";
 
-// FEATURE_CLIPS has 7 entries across 4 populated categories (editor: 1,
-// performance: 1, data: 2, infra: 3); "ai" has none, so it renders no tab.
+// FEATURE_CLIPS spans all 5 categories now that "ai" has clips of its own
+// (ai-to-sql, mcp-approval), so every category in CATEGORY_ORDER renders a tab.
 describe("FeatureShowcase", () => {
   beforeEach(() => {
     observers.length = 0;
@@ -15,7 +15,7 @@ describe("FeatureShowcase", () => {
   it("renders a tab per populated category", () => {
     render(<FeatureShowcase />);
     const tabs = screen.getAllByRole("tab");
-    expect(tabs).toHaveLength(4);
+    expect(tabs).toHaveLength(5);
     expect(tabs[0]).toHaveAttribute("aria-selected", "true");
   });
 
@@ -56,11 +56,6 @@ describe("FeatureShowcase", () => {
     await user.click(tabs[1]);
     expect(tabs[1]).toHaveAttribute("aria-selected", "true");
     expect(screen.getAllByRole("option")[0]).toHaveAttribute("aria-selected", "true");
-  });
-
-  it("does not render a tab for an empty category", () => {
-    render(<FeatureShowcase />);
-    expect(screen.queryByRole("tab", { name: "AI" })).not.toBeInTheDocument();
   });
 
   it("wires every tab to the single tabpanel it controls", () => {

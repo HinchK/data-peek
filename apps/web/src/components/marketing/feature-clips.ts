@@ -83,6 +83,13 @@ export const FEATURE_CLIPS: FeatureClip[] = [
     media: { kind: "video", file: "column-stats", width: 1280, height: 800 },
   },
   {
+    id: "mcp-approval",
+    title: "MCP write approval",
+    blurb: "An agent's write request stops at an in-app gate — nothing runs until you approve it.",
+    category: "ai",
+    media: { kind: "video", file: "mcp-approval", width: 1280, height: 800 },
+  },
+  {
     id: "ssh-tunnels",
     title: "SSH tunnels",
     blurb:

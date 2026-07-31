@@ -91,6 +91,7 @@ const categories: { id: string; label: string; items: Feature[] }[] = [
       {
         title: "MCP server",
         body: "Read-only queries run free. Writes are gated behind an in-app approval before they touch the database.",
+        href: "#feature-mcp-approval",
       },
       {
         title: "Audit log",

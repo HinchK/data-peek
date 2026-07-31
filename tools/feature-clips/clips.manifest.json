@@ -60,6 +60,14 @@
       "posterAt": 13.0,
       "gif": false,
       "speedRamp": null
+    },
+    {
+      "id": "mcp-approval",
+      "in": 5.6,
+      "out": 13.8,
+      "posterAt": 10.0,
+      "gif": false,
+      "speedRamp": null
     }
   ]
 }
