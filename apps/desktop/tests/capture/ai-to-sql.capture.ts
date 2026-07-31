@@ -40,7 +40,10 @@ test('ai-to-sql', async ({ window, cursor, pg }) => {
   // Real local `claude` CLI call (one-shot, non-agentic — no MCP server needed
   // for this clip). Hold on the generated, schema-aware SQL once it lands.
   await expect(window.getByText('Generated SQL')).toBeVisible({ timeout: 90000 })
-  const sqlBlock = window.locator('pre').filter({ hasText: /select/i }).first()
+  const sqlBlock = window
+    .locator('pre')
+    .filter({ hasText: /select/i })
+    .first()
   await expect(sqlBlock).toContainText(/organizations/i, { timeout: 5000 })
   await expect(sqlBlock).toContainText(/invoices/i)
   await window.waitForTimeout(2600)

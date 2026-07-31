@@ -26,10 +26,7 @@ test('mcp-approval', async ({ window, cursor, pg }) => {
 
   // Enable the embedded MCP server through IPC — proven live in
   // tests/e2e/mcp-server.spec.ts — rather than filming the settings toggle.
-  const portResult = await window.evaluate(
-    (port) => window.api.mcp.setPort(port),
-    CAPTURE_MCP_PORT
-  )
+  const portResult = await window.evaluate((port) => window.api.mcp.setPort(port), CAPTURE_MCP_PORT)
   expect(portResult.success).toBe(true)
   const enableResult = await window.evaluate(() => window.api.mcp.setEnabled(true))
   expect(enableResult.success).toBe(true)
