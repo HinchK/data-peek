@@ -124,6 +124,23 @@ capture and add both entries — no new capture code needed.
 Footage and the frames that prove each claim are in the capture workspace under
 `.superpowers/sdd/2026-07-30-feature-clips/`.
 
+## Decision: Bug 2 is a follow-up branch
+
+Agreed 2026-07-30. `feat/feature-clips` merges with Bug 2 open. Fix it separately so
+it gets review on its own merits rather than riding a marketing diff.
+
+The follow-up has a ready-made acceptance test: `watch-mode.capture.ts` already
+asserts the amber decoration and **fails today for exactly this reason**. When it
+passes, re-run the capture and add `watch-mode` to `clips.manifest.json` and
+`feature-clips.ts` — no new capture code needed.
+
+Until then, two public claims are false for results of ≤50 rows and should be
+revisited when the fix lands:
+
+- `apps/web/src/components/marketing/features.tsx` — the Watch Mode feature copy
+- `notes/watch-mode.mdx` — a published blog post promising "changed cells flash
+  amber, new rows enter green"
+
 ## Note on branching
 
 Bug 1's fix is currently committed on `feat/feature-clips` alongside the
