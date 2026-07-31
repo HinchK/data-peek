@@ -68,6 +68,14 @@
       "posterAt": 10.0,
       "gif": false,
       "speedRamp": null
+    },
+    {
+      "id": "ai-to-sql",
+      "in": 9.5,
+      "out": 35.8,
+      "posterAt": 34.5,
+      "gif": false,
+      "speedRamp": { "from": 16.0, "to": 32.6, "factor": 5 }
     }
   ]
 }

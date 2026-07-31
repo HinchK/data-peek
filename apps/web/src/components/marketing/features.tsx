@@ -79,6 +79,7 @@ const categories: { id: string; label: string; items: Feature[] }[] = [
       {
         title: "Plain-English to SQL",
         body: "Schema-aware. Ask what you want, get a runnable query back.",
+        href: "#feature-ai-to-sql",
       },
       {
         title: "Charts from a sentence",

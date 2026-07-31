@@ -90,6 +90,13 @@ export const FEATURE_CLIPS: FeatureClip[] = [
     media: { kind: "video", file: "mcp-approval", width: 1280, height: 800 },
   },
   {
+    id: "ai-to-sql",
+    title: "Plain-English to SQL",
+    blurb: "Ask a question about your data, get back a runnable, schema-aware query.",
+    category: "ai",
+    media: { kind: "video", file: "ai-to-sql", width: 1280, height: 800 },
+  },
+  {
     id: "ssh-tunnels",
     title: "SSH tunnels",
     blurb:
