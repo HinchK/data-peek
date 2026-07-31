@@ -44,6 +44,14 @@
       "posterAt": 20.4,
       "gif": false,
       "speedRamp": null
+    },
+    {
+      "id": "health-monitor",
+      "in": 9.0,
+      "out": 18.4,
+      "posterAt": 14.6,
+      "gif": false,
+      "speedRamp": null
     }
   ]
 }

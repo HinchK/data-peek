@@ -69,6 +69,13 @@ export const FEATURE_CLIPS: FeatureClip[] = [
     media: { kind: "video", file: "inline-editing", width: 1280, height: 800 },
   },
   {
+    id: "health-monitor",
+    title: "Health monitor",
+    blurb: "Active queries, cache hit ratios, locks, table sizes. Kill a stuck query live.",
+    category: "performance",
+    media: { kind: "video", file: "health-monitor", width: 1280, height: 800 },
+  },
+  {
     id: "ssh-tunnels",
     title: "SSH tunnels",
     blurb:

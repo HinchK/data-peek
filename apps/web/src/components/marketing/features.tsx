@@ -58,6 +58,7 @@ const categories: { id: string; label: string; items: Feature[] }[] = [
       {
         title: "Health monitor",
         body: "Active queries, cache hit ratios, locks, table sizes. Kill a stuck query live.",
+        href: "#feature-health-monitor",
       },
       {
         title: "Column statistics",
