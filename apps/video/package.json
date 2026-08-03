@@ -1,6 +1,6 @@
 {
   "name": "@data-peek/video",
-  "version": "0.28.1",
+  "version": "0.28.2",
   "private": true,
   "scripts": {
     "dev": "remotion studio",

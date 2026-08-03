@@ -1,6 +1,6 @@
 {
   "name": "@data-peek/webapp",
-  "version": "0.28.1",
+  "version": "0.28.2",
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack --port 3001",
