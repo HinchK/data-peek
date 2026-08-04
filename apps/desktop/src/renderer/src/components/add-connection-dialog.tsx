@@ -53,6 +53,14 @@ export function AddConnectionDialog({
   const setConnectionStatus = useConnectionStore((s) => s.setConnectionStatus)
   const isEditMode = !!editConnection
 
+  // One id per dialog session rather than one per getConnectionConfig() call. The main
+  // process pools by connection id, so minting a fresh id on every Test Connection click
+  // left an orphaned pool behind each time.
+  const draftIdRef = useRef(crypto.randomUUID())
+  useEffect(() => {
+    if (open && !editConnection) draftIdRef.current = crypto.randomUUID()
+  }, [open, editConnection])
+
   const [dbType, setDbType] = useState<DatabaseType>('postgresql')
   const [inputMode, setInputMode] = useState<InputMode>('manual')
   const [connectionString, setConnectionString] = useState('')
@@ -245,7 +253,9 @@ export function AddConnectionDialog({
     setUser('postgres')
     setPassword('')
     setSsl(false)
-    setSslOptions({ rejectUnauthorized: true })
+    // Matches the initial state and the edit-mode fallback: strict verification is
+    // opt-in, because most managed Postgres serves a private-CA cert that fails it.
+    setSslOptions({ rejectUnauthorized: false })
     setSsh(false)
     setSshConfig({
       host: '',
@@ -288,7 +298,7 @@ export function AddConnectionDialog({
       : undefined
 
     return {
-      id: editConnection?.id || crypto.randomUUID(),
+      id: editConnection?.id || draftIdRef.current,
       name: name || (dbType === 'sqlite' ? database : `${host}/${database}`),
       host,
       port: parseInt(port, 10) || 0,
@@ -1024,6 +1034,9 @@ export function AddConnectionDialog({
           {testResult && (
             <div
               ref={testResultRef}
+              data-testid="connection-dialog-test-result"
+              // A failure is worth interrupting a screen reader for; a success is not.
+              role={testResult === 'success' ? 'status' : 'alert'}
               className={`flex items-center gap-2 rounded-md p-3 text-sm ${
                 testResult === 'success'
                   ? 'bg-green-500/10 text-green-500'

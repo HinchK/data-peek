@@ -21,7 +21,20 @@ vi.mock('../lib/logger', () => ({
   createLogger: () => ({ debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() })
 }))
 
-import { withPgClient, withPgTransaction, closeAllPgPools } from '../adapters/pg-pool-manager'
+import { createTunnel, closeTunnel, type TunnelSession } from '../ssh-tunnel-service'
+import {
+  withPgClient,
+  withPgTransaction,
+  closeAllPgPools,
+  closePgPool
+} from '../adapters/pg-pool-manager'
+
+// Each `new Pool()` hands back its own object (delegating to the shared spies) so a test
+// can tell which specific pool was ended when a connection's shape changes.
+interface FakePool {
+  end: ReturnType<typeof vi.fn>
+}
+const createdPools: FakePool[] = []
 
 let counter = 0
 function makeConfig(overrides: Partial<ConnectionConfig> = {}): ConnectionConfig {
@@ -46,8 +59,17 @@ beforeEach(() => {
   mockPool.connect.mockReset().mockResolvedValue(mockClient)
   mockPool.end.mockReset().mockResolvedValue(undefined)
   mockPool.on.mockReset()
+  vi.mocked(createTunnel).mockReset()
+  vi.mocked(closeTunnel).mockReset()
+  createdPools.length = 0
   PoolCtor.mockImplementation(function (this: unknown) {
-    return mockPool
+    const instance = {
+      connect: (...args: unknown[]) => mockPool.connect(...args),
+      end: vi.fn((...args: unknown[]) => mockPool.end(...args)),
+      on: (...args: unknown[]) => mockPool.on(...args)
+    }
+    createdPools.push(instance)
+    return instance
   })
 })
 
@@ -98,6 +120,105 @@ describe('withPgClient', () => {
     expect(PoolCtor).toHaveBeenCalledTimes(2)
   })
 
+  it('does not reuse a saved connection pool after its SSL settings change', async () => {
+    // Saved connections have a stable id, so keying on id alone served the pre-edit
+    // pool back to a config that had just turned TLS on (issue #252).
+    const saved = makeConfig()
+
+    await withPgClient(saved, async () => {})
+    await withPgClient(
+      { ...saved, ssl: true, sslOptions: { rejectUnauthorized: false } },
+      async () => {}
+    )
+
+    expect(PoolCtor).toHaveBeenCalledTimes(2)
+    expect(PoolCtor.mock.calls[0][0]).not.toHaveProperty('ssl')
+    expect(PoolCtor.mock.calls[1][0]).toMatchObject({ ssl: { rejectUnauthorized: false } })
+  })
+
+  it('re-dials with TLS after the plaintext attempt was rejected (issue #252)', async () => {
+    const saved = makeConfig()
+    // new Pool() never dials, so a rejected handshake still leaves an entry cached —
+    // the retry has to be given a different pool, not the one that just failed.
+    mockPool.connect.mockRejectedValueOnce(
+      new Error(
+        'no pg_hba.conf entry for host "203.0.113.7", user "u", database "db", no encryption'
+      )
+    )
+
+    await expect(withPgClient(saved, async () => {})).rejects.toThrow('no encryption')
+    await withPgClient(
+      { ...saved, ssl: true, sslOptions: { rejectUnauthorized: false } },
+      async () => {}
+    )
+
+    expect(PoolCtor).toHaveBeenCalledTimes(2)
+    expect(PoolCtor.mock.calls[1][0]).toMatchObject({ ssl: { rejectUnauthorized: false } })
+  })
+
+  it('does not reuse a saved connection pool after host or credentials change', async () => {
+    const saved = makeConfig()
+
+    await withPgClient(saved, async () => {})
+    await withPgClient({ ...saved, host: 'db.example.com' }, async () => {})
+    await withPgClient({ ...saved, host: 'db.example.com', password: 'rotated' }, async () => {})
+
+    expect(PoolCtor).toHaveBeenCalledTimes(3)
+  })
+
+  it('retires the superseded pool so one connection keeps one live pool', async () => {
+    const saved = makeConfig()
+
+    await withPgClient(saved, async () => {})
+    await withPgClient({ ...saved, ssl: true }, async () => {})
+
+    expect(createdPools).toHaveLength(2)
+    expect(createdPools[0].end).toHaveBeenCalledTimes(1)
+    expect(createdPools[1].end).not.toHaveBeenCalled()
+  })
+
+  it('disposes a creation that was superseded while it was still dialing', async () => {
+    // evictOtherShapes only sees installed pools, so a slow dial could otherwise install
+    // a second live pool *and* tunnel under one identity after the newer shape landed.
+    // Tunnel setup makes that window wide, so it is the one reproduced here.
+    const saved = makeConfig({
+      ssh: true,
+      sshConfig: {
+        host: 'bastion',
+        port: 22,
+        user: 'x',
+        authMethod: 'Password',
+        privateKeyPath: ''
+      }
+    })
+    const tunnel: TunnelSession = {
+      ssh: null,
+      server: null,
+      localHost: '127.0.0.1',
+      localPort: 54320
+    }
+    let finishDial: (t: TunnelSession) => void = () => {}
+    vi.mocked(createTunnel).mockReturnValueOnce(
+      new Promise<TunnelSession>((resolve) => {
+        finishDial = resolve
+      })
+    )
+
+    const superseded = withPgClient(saved, async () => {})
+    // A newer shape for the same connection is acquired and installed meanwhile.
+    await withPgClient({ ...saved, ssl: true }, async () => {})
+
+    finishDial(tunnel)
+    await expect(superseded).rejects.toThrow('Pool was closed before initialization completed')
+
+    // createdPools[0] is the newer shape: the superseded dial had not reached new Pool()
+    // yet. It must be the one torn down, tunnel included.
+    expect(createdPools).toHaveLength(2)
+    expect(createdPools[0].end).not.toHaveBeenCalled()
+    expect(createdPools[1].end).toHaveBeenCalledTimes(1)
+    expect(closeTunnel).toHaveBeenCalledWith(tunnel)
+  })
+
   it('survives double-release without throwing', async () => {
     mockClient.release.mockImplementationOnce(() => {
       throw new Error('Release called on client which has already been released')
@@ -146,6 +267,22 @@ describe('withPgTransaction', () => {
     ).rejects.toBe(original)
 
     expect(mockClient.release).toHaveBeenCalledWith(true)
+  })
+})
+
+describe('closePgPool', () => {
+  it('closes the live pool even when handed the pre-edit config', async () => {
+    // connections:update tears down using the *previous* stored config, while a Test
+    // Connection during that edit may already have built a pool from the new shape.
+    const saved = makeConfig()
+    const edited = { ...saved, ssl: true, sslOptions: { rejectUnauthorized: false } }
+    await withPgClient(edited, async () => {})
+
+    await closePgPool(saved)
+
+    expect(createdPools[0].end).toHaveBeenCalledTimes(1)
+    await withPgClient(edited, async () => {})
+    expect(PoolCtor).toHaveBeenCalledTimes(2)
   })
 })
 
