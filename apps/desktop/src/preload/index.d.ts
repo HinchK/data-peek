@@ -80,21 +80,9 @@ import type {
   McpServerStatus,
   McpApprovalRequest,
   AuditStatus,
-  AuditVerifyResult
+  AuditVerifyResult,
+  AIProvider
 } from '@shared/index'
-
-// AI Types
-type AIProvider =
-  | 'openai'
-  | 'anthropic'
-  | 'google'
-  | 'groq'
-  | 'deepseek'
-  | 'mistral'
-  | 'xai'
-  | 'glm'
-  | 'ollama'
-  | 'claude-cli'
 
 interface AIConfig {
   provider: AIProvider
@@ -431,7 +419,9 @@ interface DataPeekApi {
     setConfig: (config: AIConfig) => Promise<IpcResponse<void>>
     clearConfig: () => Promise<IpcResponse<void>>
     validateKey: (config: AIConfig) => Promise<IpcResponse<{ valid: boolean; error?: string }>>
-    detectHarness: () => Promise<
+    detectHarness: (
+      provider?: AIProvider
+    ) => Promise<
       IpcResponse<{ available: boolean; path?: string; version?: string; error?: string }>
     >
     generateDashboard: (

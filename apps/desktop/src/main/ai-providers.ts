@@ -84,8 +84,14 @@ export function createProviderClient(config: AIConfig) {
 
     case 'claude-cli': {
       // Not an AI SDK provider — it shells out to the local `claude` CLI.
-      // Routed to harness-service before this factory is ever reached.
+      // Routed to harness/service before this factory is ever reached.
       throw new Error('claude-cli is handled by the harness service, not the AI SDK factory')
+    }
+
+    case 'codex-cli': {
+      // Not an AI SDK provider — it shells out to the local `codex` CLI.
+      // Routed to the harness service before this factory is ever reached.
+      throw new Error('codex-cli is handled by the harness service, not the AI SDK factory')
     }
 
     default: {

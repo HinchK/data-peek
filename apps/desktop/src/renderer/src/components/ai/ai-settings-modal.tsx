@@ -30,7 +30,7 @@ import {
 } from '@data-peek/ui'
 
 import type { AIProvider, AIMultiProviderConfig, AIProviderConfig } from '@shared/index'
-import { AI_PROVIDERS, providerNeedsKey } from '@shared/index'
+import { AI_PROVIDERS, providerNeedsKey, isHarnessProvider } from '@shared/index'
 
 type ProviderId = AIProvider
 
@@ -39,6 +39,35 @@ interface HarnessDetection {
   path?: string
   version?: string
   error?: string
+}
+
+const HARNESS_HINTS: Partial<Record<ProviderId, { detected: string; missing: string }>> = {
+  'claude-cli': {
+    detected: 'uses your Claude subscription or key via the claude CLI',
+    missing: 'Install Claude Code and run `claude` once to sign in.'
+  },
+  'codex-cli': {
+    detected:
+      'uses your Codex sign-in via the `codex` CLI — schema-aware answers; live grounding lands when Codex supports headless tool approval',
+    missing: 'Install Codex and run `codex login` once to sign in.'
+  }
+}
+
+// HARNESS_HINTS strings use backticks around command tokens (`claude`, `codex
+// login`). Split on them and render the odd segments as <code> so the tokens
+// get the same monospace treatment the modal always used, instead of leaking
+// literal backtick characters into the DOM.
+function renderHint(text: string | undefined): React.ReactNode {
+  if (!text) return null
+  return text.split('`').map((segment, i) =>
+    i % 2 === 1 ? (
+      <code key={i} className="font-mono">
+        {segment}
+      </code>
+    ) : (
+      segment
+    )
+  )
 }
 
 interface AISettingsModalProps {
@@ -80,19 +109,20 @@ export function AISettingsModal({
     if (!multiProviderConfig?.providers) return false
     const config = multiProviderConfig.providers[providerId]
     if (providerId === 'ollama') return !!config?.baseUrl
-    // claude-cli: no key/url, so an existing entry means it's been configured.
+    // BYOH harnesses (claude-cli, codex-cli): no key/url, so an existing entry
+    // means it's been configured.
     if (!providerNeedsKey(providerId)) return !!config
     return !!config?.apiKey
   }
 
-  // Detect the local claude CLI whenever the harness provider is selected.
+  // Detect the local CLI whenever a BYOH harness provider is selected.
   React.useEffect(() => {
-    if (!isOpen || selectedProvider !== 'claude-cli') return
+    if (!isOpen || !isHarnessProvider(selectedProvider)) return
     let cancelled = false
     setIsDetecting(true)
     setHarness(null)
     window.api.ai
-      .detectHarness()
+      .detectHarness(selectedProvider)
       .then((res) => {
         if (!cancelled) setHarness(res.success && res.data ? res.data : { available: false })
       })
@@ -170,7 +200,7 @@ export function AISettingsModal({
         apiKey: needsKey ? apiKey : undefined,
         baseUrl: baseUrl || undefined
       })
-      // Keyless providers (Claude Code CLI, Ollama) have nothing to configure —
+      // Keyless providers (ollama + the BYOH harnesses) have nothing to configure —
       // choosing one means "use it", so make it active in the same click.
       if (!needsKey) await onSetActiveProvider(selectedProvider)
       setValidationResult('success')
@@ -355,29 +385,28 @@ export function AISettingsModal({
             </div>
           )}
 
-          {/* Local Claude CLI detection (BYOH) */}
-          {selectedProvider === 'claude-cli' && (
+          {/* Local harness CLI detection (BYOH) */}
+          {isHarnessProvider(selectedProvider) && (
             <div className="space-y-2">
-              <Label className="text-xs">Claude Code CLI</Label>
+              <Label className="text-xs">{providerConfig.name}</Label>
               {isDetecting ? (
                 <p className="text-[11px] text-muted-foreground flex items-center gap-1.5">
                   <Loader2 className="size-3.5 animate-spin" />
-                  Looking for the claude binary…
+                  Looking for the local CLI…
                 </p>
               ) : harness?.available ? (
                 <div className="flex items-center gap-1.5 rounded-lg border border-green-500/30 bg-green-500/5 px-3 py-2">
                   <CheckCircle2 className="size-4 text-green-500 shrink-0" />
                   <span className="text-[11px] text-green-400">
-                    Detected{harness.version ? ` · ${harness.version}` : ''} — uses your Claude
-                    login, no API key stored here.
+                    Detected{harness.version ? ` · ${harness.version}` : ''} —{' '}
+                    {renderHint(HARNESS_HINTS[selectedProvider]?.detected)}
                   </span>
                 </div>
               ) : (
                 <div className="space-y-1.5 rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2">
                   <span className="text-[11px] text-amber-400 flex items-center gap-1.5">
                     <AlertCircle className="size-3.5 shrink-0" />
-                    claude CLI not found. Install it and run{' '}
-                    <code className="font-mono">claude</code> once to sign in.
+                    {renderHint(HARNESS_HINTS[selectedProvider]?.missing)}
                   </span>
                   <a
                     href={providerConfig.keyUrl}
@@ -385,7 +414,7 @@ export function AISettingsModal({
                     rel="noreferrer"
                     className="flex items-center gap-1 text-[10px] text-blue-400 hover:underline"
                   >
-                    Install Claude Code
+                    Setup guide
                     <ExternalLink className="size-3" />
                   </a>
                 </div>
