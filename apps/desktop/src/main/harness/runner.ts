@@ -79,8 +79,16 @@ export function runHarnessProcess(
   }
 
   return new Promise((resolve, reject) => {
+    // A missing cwd makes spawn throw the same ENOENT as a missing binary,
+    // which would misdiagnose as "CLI not found" — tell those cases apart.
+    if (request.cwd && !existsSync(request.cwd)) {
+      cleanup()
+      reject(new Error(`${opts.cliLabel} working directory disappeared: ${request.cwd}`))
+      return
+    }
     const child = spawn(request.binary, request.args, {
       env: request.env,
+      cwd: request.cwd,
       shell: false,
       stdio: ['ignore', 'pipe', 'pipe']
     })
@@ -112,8 +120,16 @@ export function runHarnessProcess(
     child.on('error', (err) => {
       clearTimeout(timer)
       cleanup()
+      if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
+        reject(err)
+        return
+      }
+      // spawn reports a vanished cwd exactly like a missing binary; the
+      // preflight can't cover the window between its check and the spawn.
       reject(
-        (err as NodeJS.ErrnoException).code === 'ENOENT' ? new Error(opts.notFoundMessage) : err
+        request.cwd && !existsSync(request.cwd)
+          ? new Error(`${opts.cliLabel} working directory disappeared: ${request.cwd}`)
+          : new Error(opts.notFoundMessage)
       )
     })
     child.on('close', (code) => {

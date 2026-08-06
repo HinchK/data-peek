@@ -50,6 +50,11 @@ const HARNESS_HINTS: Partial<Record<ProviderId, { detected: string; missing: str
     detected:
       'uses your Codex sign-in via the `codex` CLI — schema-aware answers; live grounding lands when Codex supports headless tool approval',
     missing: 'Install Codex and run `codex login` once to sign in.'
+  },
+  'antigravity-cli': {
+    detected:
+      'uses your Google sign-in via the `agy` CLI — schema-aware answers; live grounding lands when Antigravity supports headless tool approval',
+    missing: 'Install Antigravity and run `agy` once to sign in.'
   }
 }
 
@@ -109,7 +114,7 @@ export function AISettingsModal({
     if (!multiProviderConfig?.providers) return false
     const config = multiProviderConfig.providers[providerId]
     if (providerId === 'ollama') return !!config?.baseUrl
-    // BYOH harnesses (claude-cli, codex-cli): no key/url, so an existing entry
+    // BYOH harnesses: no key/url, so an existing entry
     // means it's been configured.
     if (!providerNeedsKey(providerId)) return !!config
     return !!config?.apiKey
