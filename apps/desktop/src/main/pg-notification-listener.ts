@@ -1,8 +1,6 @@
 import { randomUUID } from 'crypto'
-import { Client, type ClientConfig } from 'pg'
 import { BrowserWindow, app } from 'electron'
 import { join } from 'path'
-import { readFileSync } from 'fs'
 import Database from 'better-sqlite3'
 import type {
   ConnectionConfig,
@@ -11,8 +9,7 @@ import type {
   PgNotificationConnectionStatus,
   PgNotificationConnectionState
 } from '@shared/index'
-import { createTunnel, closeTunnel, TunnelSession } from './ssh-tunnel-service'
-import { buildSearchPathOption } from './adapters/pg-client-config'
+import { getAdapter, type DatabaseAdapter, type NotificationClient } from './db-adapter'
 import { createLogger } from './lib/logger'
 
 const log = createLogger('pg-notification-listener')
@@ -20,55 +17,39 @@ const log = createLogger('pg-notification-listener')
 const MAX_EVENTS_PER_CONNECTION = 10000
 const MAX_BACKOFF_MS = 30_000
 
-function buildClientConfig(
-  config: ConnectionConfig,
-  overrides?: { host: string; port: number }
-): ClientConfig {
-  const clientConfig: ClientConfig = {
-    host: overrides?.host ?? config.host,
-    port: overrides?.port ?? config.port,
-    database: config.database,
-    user: config.user,
-    password: config.password
+/**
+ * The factory for the long-lived connection a listener parks on.
+ *
+ * LISTEN registers against one backend session, so this connection can't come out of
+ * the pool. The adapter owns building it — SSL, SSH tunnel, `search_path` — so a
+ * listener connects exactly the way a query does.
+ *
+ * Callers resolve this *before* entering the reconnect loop: an adapter that doesn't
+ * speak LISTEN/NOTIFY is a permanent failure, and feeding it to the backoff ladder
+ * would spin forever instead of telling the user.
+ */
+function requireNotificationSupport(
+  config: ConnectionConfig
+): NonNullable<DatabaseAdapter['createNotificationClient']> {
+  const adapter = getAdapter(config)
+  const create = adapter.createNotificationClient
+  if (!create) {
+    throw new Error(`LISTEN/NOTIFY is not supported for ${adapter.dbType} connections`)
   }
-
-  const searchPathOption = buildSearchPathOption(config.schema)
-  if (searchPathOption) {
-    clientConfig.options = searchPathOption
-  }
-
-  if (config.ssl) {
-    const sslOptions = config.sslOptions || {}
-
-    if (sslOptions.ca) {
-      try {
-        clientConfig.ssl = {
-          rejectUnauthorized: sslOptions.rejectUnauthorized !== false,
-          ca: readFileSync(sslOptions.ca, 'utf-8')
-        }
-      } catch (err) {
-        throw new Error(
-          `Failed to read CA certificate file: ${sslOptions.ca}. ${(err as Error).message}`
-        )
-      }
-    } else {
-      // Default to rejectUnauthorized: false (matches adapters) so cloud DBs
-      // with self-signed certs work. Opt-in strict verification via UI.
-      clientConfig.ssl = {
-        rejectUnauthorized: sslOptions.rejectUnauthorized === true
-      }
-    }
-  }
-
-  return clientConfig
+  return create.bind(adapter)
 }
 
+/**
+ * One connection attempt: the client it opened and the channels it carries.
+ *
+ * `destroyed` means "this attempt is retired, ignore its callbacks". It deliberately
+ * says nothing about whether the *connection* should keep retrying — that used to be
+ * conflated, and retiring a failed attempt silently switched off its own recovery.
+ */
 interface ListenerEntry {
-  client: Client
-  tunnelSession: TunnelSession | null
+  client: NotificationClient
   channels: Set<string>
   connectedSince: number
-  reconnectTimer?: ReturnType<typeof setTimeout>
   destroyed: boolean
   config: ConnectionConfig
   status: PgNotificationConnectionStatus
@@ -137,22 +118,46 @@ function getDb(): Database.Database {
 
 const listeners = new Map<string, ListenerEntry>()
 
+/**
+ * Pending reconnect timers, held per connection rather than on the entry.
+ *
+ * An entry is one attempt and dies with it; recovery outlives any single attempt, so a
+ * timer parked on the entry was unreachable exactly when it mattered — after a failed
+ * dial, when there is no live entry to hang it from.
+ */
+const pendingReconnects = new Map<string, ReturnType<typeof setTimeout>>()
+
+function clearPendingReconnect(connectionId: string): void {
+  const timer = pendingReconnects.get(connectionId)
+  if (!timer) return
+  clearTimeout(timer)
+  pendingReconnects.delete(connectionId)
+}
+
+/**
+ * Connections torn down for good, so a timer that fires during shutdown can't dial a
+ * connection the app has finished with.
+ */
+const abandoned = new Set<string>()
+
 async function connectListener(
   connectionId: string,
   config: ConnectionConfig,
   channels: Set<string>,
   backoffMs = 1000
 ): Promise<void> {
+  abandoned.delete(connectionId)
+  clearPendingReconnect(connectionId)
+
   const existing = listeners.get(connectionId)
   if (existing) {
     existing.destroyed = true
-    if (existing.reconnectTimer) clearTimeout(existing.reconnectTimer)
-    try {
-      await existing.client.end()
-    } catch {
-      // ignore close errors
-    }
-    closeTunnel(existing.tunnelSession)
+    // Removed, not left as a tombstone: a retired entry that stays in the map makes
+    // subscribe() think there is a live listener to add a channel to.
+    listeners.delete(connectionId)
+    await existing.client.close().catch((err) => {
+      log.warn(`Failed to close the previous listener client for ${connectionId}:`, err)
+    })
   }
 
   const prior = statuses.get(connectionId)
@@ -162,21 +167,12 @@ async function connectListener(
     backoffMs: undefined
   })
 
-  let tunnelSession: TunnelSession | null = null
+  let client: NotificationClient | null = null
   try {
-    if (config.ssh) {
-      tunnelSession = await createTunnel(config)
-    }
-
-    const overrides = tunnelSession
-      ? { host: tunnelSession.localHost, port: tunnelSession.localPort }
-      : undefined
-
-    const client = new Client(buildClientConfig(config, overrides))
+    client = await requireNotificationSupport(config)(config)
 
     const entry: ListenerEntry = {
       client,
-      tunnelSession,
       channels: new Set(channels),
       connectedSince: Date.now(),
       destroyed: false,
@@ -185,12 +181,15 @@ async function connectListener(
     }
     listeners.set(connectionId, entry)
 
-    client.on('notification', (msg) => {
+    client.onNotification((channel, payload) => {
+      // A retired client whose close() failed can still be delivering; without this its
+      // events would be persisted and broadcast alongside its replacement's.
+      if (entry.destroyed) return
       const event: PgNotificationEvent = {
         id: randomUUID(),
         connectionId,
-        channel: msg.channel,
-        payload: msg.payload ?? '',
+        channel,
+        payload,
         receivedAt: Date.now()
       }
 
@@ -198,24 +197,17 @@ async function connectListener(
       broadcastEvent(event)
     })
 
-    client.on('error', (err) => {
+    client.onDisconnect((err) => {
       if (entry.destroyed) return
-      log.error(`pg notification client error for ${connectionId}:`, err)
-      setStatus(connectionId, {
-        state: 'error',
-        lastError: err instanceof Error ? err.message : String(err)
-      })
+      if (err) {
+        log.error(`pg notification client error for ${connectionId}:`, err)
+        setStatus(connectionId, { state: 'error', lastError: err.message })
+      } else {
+        log.warn(`pg notification client disconnected for ${connectionId}, reconnecting...`)
+        setStatus(connectionId, { state: 'disconnected' })
+      }
       scheduleReconnect(connectionId, config, entry.channels, backoffMs)
     })
-
-    client.on('end', () => {
-      if (entry.destroyed) return
-      log.warn(`pg notification client disconnected for ${connectionId}, reconnecting...`)
-      setStatus(connectionId, { state: 'disconnected' })
-      scheduleReconnect(connectionId, config, entry.channels, backoffMs)
-    })
-
-    await client.connect()
 
     for (const channel of channels) {
       await client.query(`LISTEN ${quoteIdent(channel)}`)
@@ -232,12 +224,23 @@ async function connectListener(
     })
   } catch (err) {
     log.error(`Failed to connect listener for ${connectionId}:`, err)
-    closeTunnel(tunnelSession)
+    // A LISTEN that failed after the dial succeeded leaves a live connection behind, so
+    // this attempt has to be retired and closed. Retiring it must not disarm the retry
+    // below, which is why `destroyed` no longer gates scheduleReconnect.
+    const entry = listeners.get(connectionId)
+    const retryChannels = entry?.client === client ? entry.channels : channels
+    if (entry && entry.client === client) {
+      entry.destroyed = true
+      listeners.delete(connectionId)
+    }
+    await client?.close().catch((closeErr) => {
+      log.warn(`Failed to close the half-built listener client for ${connectionId}:`, closeErr)
+    })
     setStatus(connectionId, {
       state: 'error',
       lastError: err instanceof Error ? err.message : String(err)
     })
-    scheduleReconnect(connectionId, config, channels, backoffMs)
+    scheduleReconnect(connectionId, config, retryChannels, backoffMs)
   }
 }
 
@@ -247,8 +250,7 @@ function scheduleReconnect(
   channels: Set<string>,
   backoffMs: number
 ): void {
-  const entry = listeners.get(connectionId)
-  if (entry?.destroyed) return
+  if (abandoned.has(connectionId)) return
 
   const nextBackoff = Math.min(backoffMs * 2, MAX_BACKOFF_MS)
   const nextRetryAt = Date.now() + backoffMs
@@ -262,17 +264,17 @@ function scheduleReconnect(
     backoffMs
   })
 
-  if (entry && entry.reconnectTimer) clearTimeout(entry.reconnectTimer)
+  // At most one timer per connection: a socket death that reaches both the disconnect
+  // handler and a rejected query would otherwise arm two.
+  clearPendingReconnect(connectionId)
 
   const timer = setTimeout(() => {
-    const current = listeners.get(connectionId)
-    if (current?.destroyed) return
+    pendingReconnects.delete(connectionId)
+    if (abandoned.has(connectionId)) return
     connectListener(connectionId, config, channels, nextBackoff)
   }, backoffMs)
 
-  if (entry) {
-    entry.reconnectTimer = timer
-  }
+  pendingReconnects.set(connectionId, timer)
 }
 
 export async function forceReconnect(connectionId: string): Promise<void> {
@@ -280,10 +282,7 @@ export async function forceReconnect(connectionId: string): Promise<void> {
   if (!entry) {
     throw new Error('No listener registered for this connection')
   }
-  if (entry.reconnectTimer) {
-    clearTimeout(entry.reconnectTimer)
-    entry.reconnectTimer = undefined
-  }
+  clearPendingReconnect(connectionId)
   log.debug(`Force-reconnecting ${connectionId}`)
   await connectListener(connectionId, entry.config, new Set(entry.channels), 1000)
 }
@@ -337,6 +336,10 @@ export async function subscribe(
   config: ConnectionConfig,
   channel: string
 ): Promise<void> {
+  // Up front, so an unsupported driver rejects the IPC call instead of disappearing
+  // into connectListener's catch and retrying on a ladder that can never succeed.
+  requireNotificationSupport(config)
+
   const existing = listeners.get(connectionId)
 
   if (existing && !existing.destroyed) {
@@ -375,26 +378,15 @@ export async function send(
   channel: string,
   payload: string
 ): Promise<void> {
-  let tunnelSession: TunnelSession | null = null
-  try {
-    if (config.ssh) {
-      tunnelSession = await createTunnel(config)
-    }
-
-    const overrides = tunnelSession
-      ? { host: tunnelSession.localHost, port: tunnelSession.localPort }
-      : undefined
-
-    const client = new Client(buildClientConfig(config, overrides))
-    await client.connect()
-    try {
-      await client.query('SELECT pg_notify($1, $2)', [channel, payload])
-    } finally {
-      await client.end().catch(() => {})
-    }
-  } finally {
-    closeTunnel(tunnelSession)
+  const adapter = getAdapter(config)
+  // Checked rather than left to the server so a non-Postgres connection gets the same
+  // message the subscribe path gives, not a driver syntax error about pg_notify.
+  if (!adapter.createNotificationClient) {
+    throw new Error(`LISTEN/NOTIFY is not supported for ${adapter.dbType} connections`)
   }
+  // One-shot, so this goes through the pool rather than opening (and tunnelling) a
+  // connection of its own. Only a listener needs a session it can park on.
+  await adapter.execute(config, 'SELECT pg_notify($1, $2)', [channel, payload])
 }
 
 export function getChannels(connectionId: string): PgNotificationChannel[] {
@@ -447,15 +439,21 @@ export function clearHistory(connectionId: string): void {
 }
 
 export async function cleanup(): Promise<void> {
+  // Abandon every connection that has a timer parked, not just those with a live entry:
+  // a connection whose last dial failed has no entry but may still have a retry armed.
+  for (const connectionId of pendingReconnects.keys()) {
+    abandoned.add(connectionId)
+  }
+  for (const connectionId of Array.from(pendingReconnects.keys())) {
+    clearPendingReconnect(connectionId)
+  }
+
   for (const [connectionId, entry] of listeners.entries()) {
+    abandoned.add(connectionId)
     entry.destroyed = true
-    if (entry.reconnectTimer) clearTimeout(entry.reconnectTimer)
-    try {
-      await entry.client.end()
-    } catch {
-      // ignore close errors
-    }
-    closeTunnel(entry.tunnelSession)
+    await entry.client.close().catch((err) => {
+      log.warn(`Failed to close listener client for ${connectionId} during cleanup:`, err)
+    })
     listeners.delete(connectionId)
     statuses.delete(connectionId)
   }
